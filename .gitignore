@@ -16,5 +16,10 @@ doc/_build
 */*/*.swm
 */*.so
 */*.c
+.git
+_pycache_
+*~
+\#\#
+.\#*
 build
 TMP

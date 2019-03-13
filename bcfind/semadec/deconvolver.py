@@ -13,6 +13,9 @@ import os
 import warnings
 from bcfind import timer
 
+#import aggiunti
+
+import torch
 
 deconvolver_timer = timer.Timer('Semantic Deconvolution analysis')
 
@@ -69,6 +72,12 @@ class Predictor(object):
         raise NotImplementedError('')
 
 
+class PredictorFromPytorch(Predictor):
+    def __init__(self):
+        pass
+    def predict(self, X):
+        raise NotImplementedError('')
+
 class PredictorFromPylearn2MLP(Predictor):
     def __init__(self, model):
 
@@ -104,10 +113,13 @@ class PredictorFromPylearn2MLP(Predictor):
         return Xhat
 
 def make_predictor(model):
+    #todo aggiungere un ramo all'if con il nostro modello di rete che si chiama PredictorfromPytorch
     if isinstance(model, DeepComposedAutoencoder) or isinstance(model, Autoencoder):
         return PredictorFromPylearn2Autoencoder(model)
     elif isinstance(model, MLP):
         return PredictorFromPylearn2MLP(model)
+    elif isinstance(model, torch.nn.Module):
+        return PredictorFromPytorch(model)
     else:
         raise TypeError('Model has type', type(model))
 
@@ -178,6 +190,7 @@ def deconvolve(list_tensors,extramargin,speedup,do_cython,rangex,rangey,rangez,p
 
     reconstruction = np.zeros(shape_tensor, dtype=np.float32)
     normalizer = np.zeros(shape_tensor, dtype=np.float32)
+    #todo model è il nostro modello di pytorch
     predictor = make_predictor(model)
     num_tensors=len(list_tensors)
     n_points=len(rangex)*len(rangey)
