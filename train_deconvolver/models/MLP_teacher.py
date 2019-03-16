@@ -9,8 +9,9 @@ class MLP_teacher(nn.Module):
         self.fc3 = nn.Linear(hidden_size_2, in_out_size)
         self.relu = nn.ReLU()
         self.sigm = nn.Sigmoid()
-    def __initialize_weights(self):
-        pass
+
+    #def __initialize_weights(self):
+    #    pass
 
     def forward(self, x):
         out = self.fc1(x)
@@ -20,3 +21,7 @@ class MLP_teacher(nn.Module):
         out = self.fc3(x)
         out = self.sigm(x)
         return out
+
+
+if __name__=="__main__":
+    print("magi")
