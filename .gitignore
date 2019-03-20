@@ -1,4 +1,5 @@
 doc/_build
+*.tgz
 *.pyc
 */*.pyc
 */*/*.pyc
@@ -23,3 +24,4 @@ _pycache_
 .\#*
 build
 TMP
+dataset/*

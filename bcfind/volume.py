@@ -28,6 +28,7 @@ hi2rgb = pickle.load(open(SHARE_DIR+'/hi2rgb.pickle', 'rb'))
 save_vaa3d_timer = timer.Timer('Save Vaa3D')
 save_markers_timer = timer.Timer('Save markers')
 
+
 def m_load_markers(filename, from_vaa3d=False):
     data = pd.read_csv(filename, skipinitialspace=True, na_filter=False)
     if '#x' in data.keys():  # fix some Vaa3d garbage
