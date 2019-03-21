@@ -20,6 +20,7 @@ doc/_build
 .git
 _pycache_
 *~
+\#*
 \#\#
 .\#*
 build
