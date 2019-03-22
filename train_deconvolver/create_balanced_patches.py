@@ -2,7 +2,7 @@ import os
 import pandas as pd
 import numpy as np
 import torch
-
+import argparse
 
 
 def read_single_csv(csv_img_path):
@@ -12,7 +12,7 @@ def read_single_csv(csv_img_path):
     if '##x' in df.keys():  # fix some Vaa3d garbage
         df.rename(columns={'##x': 'x'}, inplace=True)
 
-    df.rename(columns={'x': 'z', 'z': 'x'}, inplace=True) #todo fattelo rispiegare da leo perchè te lo sei scordato, magi-like
+    df.rename(columns={'x': 'z', 'z': 'x'}, inplace=True)
     centers_df = df.iloc[:, :3]
     centers = [[center.x, center.y, center.z] for _,center in centers_df.iterrows()]
 
@@ -51,9 +51,10 @@ counter_graylevel = 0
 
 
 def patch_generator(img_name, patch_size, img_dir, csv_dir, th=8,
-                    perc=0.5, n_centers=1, counter_graylevel = None):
+                    perc=0.5, n_centers=1):
     '''extract patches from an entire substack
     without an overlap of at most 50%'''
+    counter_graylevel= 0
     overlap_percentage = (patch_size**3) * perc
 
     img_path = os.path.join(img_dir, img_name) + ".pth"
@@ -85,32 +86,62 @@ def patch_generator(img_name, patch_size, img_dir, csv_dir, th=8,
         counter_graylevel += 1 if acceptable_graylevel and not contains_cells and overlap_area < overlap_percentage else 0
         if overlap_area < overlap_percentage and (contains_cells
                                                   or acceptable_graylevel):
+            print("choosen : "+ str([x,y,z]))
             mask[x:x+patch_size, y:y+patch_size, z:z+patch_size] = 1
 
-            coord_list.append(x, y, z, img_name)
-    return pd.DataFrame(coord_list, columns=['x', 'y', 'z', 'img_name'])
+            coord_list.append([x, y, z, img_name])
+    return pd.DataFrame(coord_list, columns=['x', 'y', 'z', 'img_name']), counter_graylevel
 
 
-def patch_balancer(image_dir, csv_dir, target_root_dir, patch_size):
+def patch_balancer(image_dir, csv_dir,target_dir, patch_size):
     '''Starting from the whole set of substacks it creates a dataset of
     patch in a balanced fashion'''
 
     img_names = [name.split(".")[0] for name in os.listdir(image_dir)  if name.split(".")[-1] == 'pth']
     print(img_names)
     df = pd.DataFrame(columns=['x', 'y', 'z', 'img_name'])
-
+    counter_graylevel =0
     for img_name in img_names:  # XXX in lettura pd scrivere ignore_index=True
+        print img_name
         df.append(
-            patch_generator(img_name, patch_size, image_dir, csv_dir, 0.5), ignore_index=True)
+            patch_generator(img_name, patch_size, image_dir, csv_dir, 0.5)[0], ignore_index=True)
+        counter_graylevel += patch_generator(img_name, patch_size, image_dir, csv_dir, 0.5)[1]
+    path_save_csv = os.path.join(target_dir, "patches.csv")
 
-    path_save_csv = os.path.join(targer_dir, "patches.csv")
-    df.to_csv(path_save_csv)
 
+    file = open(path_save_csv, 'a')
+    comment = '# size='+patch_size
+    file.write(comment)
+    df.to_csv(file)
+    file.close()
+
+    print counter_graylevel
+
+def get_parser():
+    parser = argparse.ArgumentParser(
+                                     formatter_class=argparse.
+                                     ArgumentDefaultsHelpFormatter)
+    parser.add_argument('--image_dir', dest = 'image_dir', type=str,
+                        help="""Directory containing 3d images""")
+
+    parser.add_argument('--csv_dir', dest='csv_dir', type=str,
+                        help="""Directory containing csv ground truth """)
+
+    parser.add_argument('--target_dir', dest='target_dir', type=str,
+                        help="""Directory to put the patches.csv file in """)
+
+    parser.add_argument('--patch_size', dest='patch_size', type=int,
+                        help="""Patch dimension """)
 
 if __name__ == "__main__":
-    image_dir = '/home/cosimo/machine_learning_dataset/3DImages'
-    targer_dir = ''
-    counter_graylevel =0
-    patch_size = 64
-    patch_balancer(image_dir, targer_dir, patch_size = patch_size, counter_graylevel = counter_graylevel)
-    print counter_graylevel
+
+    parser = get_parser()
+
+    args = parser.parse_args()
+    image_dir = args.image_dir
+    csv_dir = args.csv_dir
+    target_dir = args.target_dir
+    patch_size = args.patch_size
+
+
+    patch_balancer(image_dir,csv_dir, target_dir, patch_size = patch_size)
