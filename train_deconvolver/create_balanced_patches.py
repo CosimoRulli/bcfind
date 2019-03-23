@@ -4,7 +4,6 @@ import numpy as np
 import torch
 
 
-
 def read_single_csv(csv_img_path):
     df = pd.read_csv(csv_img_path, skipinitialspace=True, na_filter=False)
     if '#x' in df.keys():  # fix some Vaa3d garbage
@@ -51,7 +50,7 @@ counter_graylevel = 0
 
 
 def patch_generator(img_name, patch_size, img_dir, csv_dir, th=8,
-                    perc=0.5, n_centers=1, counter_graylevel = None):
+                    perc=0.5, n_centers=1):
     '''extract patches from an entire substack
     without an overlap of at most 50%'''
     overlap_percentage = (patch_size**3) * perc
@@ -91,26 +90,23 @@ def patch_generator(img_name, patch_size, img_dir, csv_dir, th=8,
     return pd.DataFrame(coord_list, columns=['x', 'y', 'z', 'img_name'])
 
 
-def patch_balancer(image_dir, csv_dir, target_root_dir, patch_size):
+def patch_balancer(gt_dir, image_dir, csv_dir, target_root_dir, patch_size):
     '''Starting from the whole set of substacks it creates a dataset of
     patch in a balanced fashion'''
 
-    img_names = [name.split(".")[0] for name in os.listdir(image_dir)  if name.split(".")[-1] == 'pth']
-    print(img_names)
+    img_names = [name.split(".")[0] for name in os.listdir(image_dir)]
     df = pd.DataFrame(columns=['x', 'y', 'z', 'img_name'])
 
     for img_name in img_names:  # XXX in lettura pd scrivere ignore_index=True
         df.append(
-            patch_generator(img_name, patch_size, image_dir, csv_dir, 0.5), ignore_index=True)
+            patch_generator(img_name, patch_size, gt_dir, csv_dir, 0.5), ignore_index=True)
 
     path_save_csv = os.path.join(targer_dir, "patches.csv")
     df.to_csv(path_save_csv)
 
 
 if __name__ == "__main__":
-    image_dir = '/home/cosimo/machine_learning_dataset/3DImages'
+    gt_dir = '/home/leonardo/workspaces/bcfind/dataset/GT/3d_gt'
     targer_dir = ''
-    counter_graylevel =0
     patch_size = 64
-    patch_balancer(image_dir, targer_dir, patch_size = patch_size, counter_graylevel = counter_graylevel)
-    print counter_graylevel
+    patch_balancer(gt_dir, targer_dir, patch_size=patch_size)
