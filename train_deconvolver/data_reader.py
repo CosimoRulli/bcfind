@@ -12,23 +12,21 @@ class DataReader_new(Dataset):
     Use a csv to select patch from entire substacks
     both from original and gt ones
     """
-    def __init__(self, img_dir, gt_dir, csv_path, transform=None):
+    def __init__(self, img_dir, gt_dir, df, patch_size, transform=None):
         super(DataReader_new, self).__init__()
         self.img_dir = img_dir
         self.gt_dir = gt_dir
-        self.patch_df = pd.read_csv(csv_path, comment="#",
-                                    index_col=0, dtype={"img_name": str})
+
+        self.patch_df = df
         self.transforms = transform
-        self.patch_size = int(str(pd.read_csv(csv_path, nrows=1, header=None).
-                                  take([0])).split("=")[-1])  # workaround
-        print self.patch_size
+        self.patch_size = patch_size
 
     def __len__(self):
         return self.patch_df.shape[0]
 
     def __getitem__(self, idx):
         x, y, z, img_name = self.patch_df.iloc[idx]
-        img_name = str(img_name)
+        # img_name = str(img_name)
         img_path = os.path.join(self.img_dir, img_name) + ".pth"
         gt_path = os.path.join(self.gt_dir, img_name) + "-GT.pth"
         print img_path
