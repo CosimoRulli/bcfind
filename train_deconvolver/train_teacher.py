@@ -1,4 +1,4 @@
-
+import os
 import torch
 from torch.utils.data import DataLoader
 import argparse
@@ -10,6 +10,9 @@ import torch.optim as optim
 from tqdm import tqdm
 import pandas as pd
 from sklearn.model_selection import train_test_split
+from tensorboardX import SummaryWriter
+from datetime import datetime
+
 
 def get_parser():
     parser = argparse.ArgumentParser(description=__doc__,
@@ -35,6 +38,9 @@ def get_parser():
                         type=str,
                         help="""Directory contaning the collection
                         of pth gt images for validation""")
+
+    parser.add_argument('model_save_path', metavar='model_save_path', type=str,
+                        help="""directory where the models will be saved""")
 
     parser.add_argument('batch_size', metavar='batch_size', type=int,
                         default=8,
@@ -70,7 +76,15 @@ def get_parser():
                         help="""device to use during training
                         and validation phase, e.g. cuda:0""")
 
+    parser.add_argument('root_log_dir', metavar='root_log_dir', type=str,
+                        default=None,
+                        help="""log directory for tensorbard""")
+
     return parser
+
+
+def criterium_to_save():
+    return True
 
 
 if __name__ == "__main__":
@@ -100,6 +114,14 @@ if __name__ == "__main__":
     model.apply(utils.weights_init())
     loss = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
+
+    # tensorboard configuration
+    default_log_dir = ""
+    current_time = datetime.now().strftime('%b%d_%H-%M-%S')
+    log_base = args.root_log_dir if args.root_log_dir else default_log_dir
+    log_dir = os.path.join(log_base, current_time)
+
+    writer = SummaryWriter(log_dir=log_dir)
 
     ############
     # Main loop
@@ -147,4 +169,8 @@ if __name__ == "__main__":
                     if phase == 'train':
                         calc_loss.backward()
                         optimizer.step()
-                    pass
+
+        if criterium_to_save():
+            torch.save(model.state_dict(),
+                       os.path.join(args.model_save_path,
+                                    '{}_teacher'.format(epoch)))

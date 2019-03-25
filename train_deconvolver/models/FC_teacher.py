@@ -5,7 +5,7 @@ import torch.nn as nn
 
 
 class FC_teacher(nn.Module):
-    def __init__(self, k, n_filters, input_size):
+    def __init__(self, k, n_filters, input_size, input_channels=1):
 
         super(FC_teacher, self).__init__()
         self.input_size = input_size
@@ -16,6 +16,7 @@ class FC_teacher(nn.Module):
                                padding=1)  # 1x13x13x13 -> n_filters x 13 x 13 x 13
         self.relu = nn.ReLU(True)
         self.conv2 = nn.Conv3d(n_filters, n_filters * 2, self.k)  # n_filters x 13 x 13 x 13 -> n_filters*2 x 11 x 11 x 11
+        
         self.conv_t1 = nn.ConvTranspose3d(2*n_filters, n_filters,
                                           self.k, padding=1)
         self.conv_t2 = nn.ConvTranspose3d(n_filters, input_size[0], self.k)
