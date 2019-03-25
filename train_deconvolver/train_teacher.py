@@ -5,6 +5,7 @@ import argparse
 import utils
 from data_reader import DataReader
 from models.FC_teacher import FC_teacher
+from models.FC_teacher_max_p import FC_teacher_max_p
 import torch.nn as nn
 import torch.optim as optim
 from tqdm import tqdm
@@ -29,16 +30,6 @@ def get_parser():
                         help="""Directory contaning the collection
                         of pth gt images""")
 
-    parser.add_argument('img_validation_dir', metavar='img_validation_dir',
-                        type=str,
-                        help="""Directory contaning the collection
-                        of pth images for validation""")
-
-    parser.add_argument('gt_validation_dir', metavar='gt_validation_dir',
-                        type=str,
-                        help="""Directory contaning the collection
-                        of pth gt images for validation""")
-
     parser.add_argument('model_save_path', metavar='model_save_path', type=str,
                         help="""directory where the models will be saved""")
 
@@ -59,6 +50,12 @@ def get_parser():
                         help="""size of the cubic kernel, provide only an integer e.
                         g. kernel_size 3""")
 
+    parser.add_argument('max_pool_version', metavar='max_pool_version',
+                        type=bool,
+                        default=False,
+                        help="""whether to use the teacher with
+                        maxpooling layers set to true""")
+    
     parser.add_argument('initial_filters', metavar='initial_filters', type=int,
                         default=4,
                         help="""Number of filters in the initial conv layer""")
@@ -87,6 +84,17 @@ def criterium_to_save():
     return True
 
 
+def print_and_save_losses(losses, writer, epoch):
+    for phase in ['train', 'validation']:
+        losses[phase] = torch.tensor(losses[phase]).mean().item()
+        print '{} loss: {:.3f} '.format(phase, losses[phase])
+        writer.add_scalars(
+            'losses',
+            {phase: losses[phase]},
+            global_step=epoch
+        )
+
+
 if __name__ == "__main__":
     parser = get_parser()
     args = parser.parse_args()
@@ -106,17 +114,21 @@ if __name__ == "__main__":
     validation_loader = DataLoader(validation_dataset, args.batch_size,
                                    shuffle=False, num_workers=args.n_workers)
 
-    input_size = (args.patch_size, args.patch_size, args.patch_size)
-    model = FC_teacher(k=args.kernel_size,
-                       n_filters=args.initial_filters,
-                       input_size=input_size)
+    # input_size = (args.patch_size, args.patch_size, args.patch_size)
+
+    if args.max_pool_version:
+        model = FC_teacher_max_p(n_filters=args.initial_filters,
+                                 k_conv=args.args.kernel_size)
+    else:
+        model = FC_teacher(k=args.kernel_size,
+                           n_filters=args.initial_filters)
 
     model.apply(utils.weights_init())
     loss = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
 
     # tensorboard configuration
-    default_log_dir = ""
+    default_log_dir = "/home/rulli_scommegna/tensorboard_log"
     current_time = datetime.now().strftime('%b%d_%H-%M-%S')
     log_base = args.root_log_dir if args.root_log_dir else default_log_dir
     log_dir = os.path.join(log_base, current_time)
@@ -129,8 +141,8 @@ if __name__ == "__main__":
     print("Starting main loop")
 
     losses = {}
-    losses['train'] = {}
-    losses['validation'] = {}
+    losses['train'] = []
+    losses['validation'] = []
 
     for epoch in range(args.epochs):
         print("epoch [{}/{}]".format(epoch, args.epochs))
@@ -170,6 +182,10 @@ if __name__ == "__main__":
                         calc_loss.backward()
                         optimizer.step()
 
+        # after each epoch we print and save in tensorboard the losses
+        print_and_save_losses(losses, writer, epoch)
+
+        # sometimes we save the model
         if criterium_to_save():
             torch.save(model.state_dict(),
                        os.path.join(args.model_save_path,
