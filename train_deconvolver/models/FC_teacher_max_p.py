@@ -31,6 +31,8 @@ class FC_teacher_max_p(nn.Module):
 
     def forward(self, input):
 
+        input = input.unsqueeze(1)
+
         output = self.conv1(input)
         output = self.relu(output)
         output = self.max_pool(output)
@@ -51,7 +53,7 @@ class FC_teacher_max_p(nn.Module):
         output = self.conv1x1x1(output)
         output = self.sigmoid(output)
 
-        return output
+        return output.squeeze(1)
 
 if __name__=="__main__":
     teacher = FC_teacher_max_p(4).to('cuda:0')

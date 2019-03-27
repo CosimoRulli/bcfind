@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import
 import os
 import torch
 from torch.utils.data import DataLoader
@@ -55,7 +57,7 @@ def get_parser():
                         default=False,
                         help="""whether to use the teacher with
                         maxpooling layers set to true""")
-    
+
     parser.add_argument('initial_filters', metavar='initial_filters', type=int,
                         default=4,
                         help="""Number of filters in the initial conv layer""")
@@ -110,7 +112,8 @@ if __name__ == "__main__":
     train_loader = DataLoader(train_dataset, args.batch_size,
                               shuffle=True, num_workers=args.n_workers)
 
-    validation_dataset = DataReader(args.validation_dir, val_df, patch_size)
+    validation_dataset = DataReader(args.img_dir, args.gt_dir,
+                                    val_df, patch_size)
     validation_loader = DataLoader(validation_dataset, args.batch_size,
                                    shuffle=False, num_workers=args.n_workers)
 
@@ -118,12 +121,12 @@ if __name__ == "__main__":
 
     if args.max_pool_version:
         model = FC_teacher_max_p(n_filters=args.initial_filters,
-                                 k_conv=args.args.kernel_size)
+                                 k_conv=args.kernel_size)
     else:
         model = FC_teacher(k=args.kernel_size,
                            n_filters=args.initial_filters)
 
-    model.apply(utils.weights_init())
+    model.apply(utils.weights_init)
     loss = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
 
@@ -165,18 +168,34 @@ if __name__ == "__main__":
             # progress_bar = enumerate(total=total_iterations)
 
             if phase == 'train':
-                progress_bar = tqdm(enumerate(train_loader,
-                                              total=total_iterations))
+                progress_bar = tqdm(enumerate(train_loader),
+                                    total=total_iterations)
             else:
                 progress_bar = enumerate(validation_loader)
 
-            for patches in progress_bar:
-                patches = patches.to(args.device)
+            for idx, patches in progress_bar:
+                img_patches, gt_patches = patches
+
+                # img_patches = img_patches.to(args.device)
+                # gt_patches = gt_patches.to(args.device)
 
                 with torch.set_grad_enabled(phase == 'train'):
                     model.zero_grad()
-                    model_output = model(patches)
-                    calc_loss = loss(model_output)
+                    model_output = model(img_patches)
+
+                    print '****************************'
+                    print model_output.shape
+                    print gt_patches.shape
+                    print '****************************'
+
+                    model_output_flat = model_output.view(-1)
+                    gt_patches_flat = gt_patches.view(-1)
+
+                    print '****************************'
+                    print model_output_flat.shape
+                    print gt_patches_flat.shape
+                    print '****************************'
+                    calc_loss = loss(model_output_flat, gt_patches_flat)
                     losses[phase].append(calc_loss)
                     if phase == 'train':
                         calc_loss.backward()
