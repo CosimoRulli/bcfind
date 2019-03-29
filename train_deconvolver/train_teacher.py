@@ -199,15 +199,16 @@ if __name__ == "__main__":
                     # print gt_patches.shape
                     # print '****************************'
 
-                    model_output_flat = model_output.view(-1)
-                    gt_patches_flat = gt_patches.view(-1)
+                    # model_output_flat = model_output.view(-1)
+                    # gt_patches_flat = gt_patches.view(-1)
 
                     # print '****************************'
                     # print model_output_flat.shape
                     # print gt_patches_flat.shape
                     # print '****************************'
 
-                    calc_loss = loss(model_output_flat, gt_patches_flat)
+                    calc_loss = loss(model_output, gt_patches)
+                    print calc_loss
                     losses[phase].append(calc_loss)
                     if phase == 'train':
                         calc_loss.backward()

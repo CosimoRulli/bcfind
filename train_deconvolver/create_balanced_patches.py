@@ -65,7 +65,7 @@ def patch_generator(img_name, patch_size, img_dir, csv_dir, th=8,
     torch_image = torch.load(img_path)
     original_image = torch_image.numpy()
 
-    mask = np.zeros(np.array(original_image.shape) -patch_size)
+    mask = np.zeros(np.array(original_image.shape) - patch_size)
 
     coord_list = []
 
