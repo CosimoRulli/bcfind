@@ -101,6 +101,11 @@ if __name__ == "__main__":
     parser = get_parser()
     args = parser.parse_args()
 
+    # create a directory for models
+    datestring = datetime.strftime(datetime.now(), '%Y-%m-%d-%H-%M-%S')
+    model_save_path = os.path.join(args.model_save_path, datestring)
+    os.makedirs(model_save_path)
+
     complete_dataframe = pd.read_csv(args.csv_path, comment="#",
                                      index_col=0, dtype={"img_name": str})
     patch_size = int(str(pd.read_csv(args.csv_path, nrows=1, header=None).
@@ -120,14 +125,20 @@ if __name__ == "__main__":
     # input_size = (args.patch_size, args.patch_size, args.patch_size)
 
     if args.max_pool_version:
+        print 'sono max'
+        print args.max_pool_version
         model = FC_teacher_max_p(n_filters=args.initial_filters,
-                                 k_conv=args.kernel_size)
+                                 k_conv=args.kernel_size).to(args.device)
     else:
+        print 'sono normale'
+        print args.max_pool_version
+
         model = FC_teacher(k=args.kernel_size,
-                           n_filters=args.initial_filters)
+                           n_filters=args.initial_filters).to(args.device)
 
     model.apply(utils.weights_init)
-    loss = nn.CrossEntropyLoss()
+    # loss = nn.CrossEntropyLoss()
+    loss = nn.BCELoss()
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
 
     # tensorboard configuration
@@ -176,25 +187,26 @@ if __name__ == "__main__":
             for idx, patches in progress_bar:
                 img_patches, gt_patches = patches
 
-                # img_patches = img_patches.to(args.device)
-                # gt_patches = gt_patches.to(args.device)
+                img_patches = img_patches.to(args.device)
+                gt_patches = gt_patches.to(args.device)
 
                 with torch.set_grad_enabled(phase == 'train'):
                     model.zero_grad()
                     model_output = model(img_patches)
 
-                    print '****************************'
-                    print model_output.shape
-                    print gt_patches.shape
-                    print '****************************'
+                    # print '****************************'
+                    # print model_output.shape
+                    # print gt_patches.shape
+                    # print '****************************'
 
                     model_output_flat = model_output.view(-1)
                     gt_patches_flat = gt_patches.view(-1)
 
-                    print '****************************'
-                    print model_output_flat.shape
-                    print gt_patches_flat.shape
-                    print '****************************'
+                    # print '****************************'
+                    # print model_output_flat.shape
+                    # print gt_patches_flat.shape
+                    # print '****************************'
+
                     calc_loss = loss(model_output_flat, gt_patches_flat)
                     losses[phase].append(calc_loss)
                     if phase == 'train':
@@ -207,5 +219,5 @@ if __name__ == "__main__":
         # sometimes we save the model
         if criterium_to_save():
             torch.save(model.state_dict(),
-                       os.path.join(args.model_save_path,
+                       os.path.join(model_save_path,
                                     '{}_teacher'.format(epoch)))

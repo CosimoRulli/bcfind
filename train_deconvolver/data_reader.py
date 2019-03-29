@@ -42,7 +42,7 @@ class DataReader(Dataset):
                       y:y + self.patch_size,
                       z:z + self.patch_size].float()
 
-        return original_patch, gt_patch
+        return original_patch // 255, gt_patch // 255
 
 
 class DataReaderWIP(Dataset):
