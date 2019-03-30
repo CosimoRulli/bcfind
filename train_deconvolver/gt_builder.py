@@ -82,7 +82,8 @@ def gt_builder_from_gaussian_filter(csv_path, sigma, truncate, flip):
 def create_ground_truth(root_dir, target_dir, sigma=3.5, truncate=1.5,
                         flip=True,
                         visualize=False):
-
+    flip = False
+    print flip
     for _csv in os.listdir(root_dir):
         gt_img = gt_builder_from_gaussian_filter(os.path.join(root_dir, _csv),
                                                  sigma, truncate,

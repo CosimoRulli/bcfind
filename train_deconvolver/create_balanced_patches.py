@@ -102,7 +102,7 @@ def patch_generator(img_name, patch_size, img_dir, csv_dir, th=8,
     return pd.DataFrame(coord_list, columns=['x', 'y', 'z', 'img_name']), counter_graylevel
 
 
-def patch_balancer(image_dir, csv_dir,target_dir, patch_size):
+def patch_balancer(image_dir, csv_dir,target_dir, patch_size, threshold):
     '''Starting from the whole set of substacks it creates a dataset of
     patch in a balanced fashion'''
 
@@ -112,7 +112,7 @@ def patch_balancer(image_dir, csv_dir,target_dir, patch_size):
     counter_graylevel =0
     for img_name in img_names:  # XXX in lettura pd scrivere ignore_index=True
         print img_name
-        res = patch_generator(img_name, patch_size, image_dir, csv_dir)
+        res = patch_generator(img_name, patch_size, image_dir, csv_dir, th=threshold)
 
         #
         df=df.append(
@@ -146,8 +146,10 @@ def get_parser():
 
     parser.add_argument('--patch_size', dest='patch_size', type=int,
                         help="""Patch dimension """)
-    return parser
 
+    parser.add_argument('--threshold',  dest = 'threshold', type = int,
+                        help=""" Threshold to dark zones selection """)
+    return parser
 if __name__ == "__main__":
 
     parser = get_parser()
@@ -157,5 +159,5 @@ if __name__ == "__main__":
     csv_dir = args.csv_dir
     target_dir = args.target_dir
     patch_size = args.patch_size
-
-    patch_balancer(image_dir,csv_dir, target_dir, patch_size = patch_size)
+    threshold = args.threshold
+    patch_balancer(image_dir,csv_dir, target_dir, patch_size = patch_size, threshold=threshold)

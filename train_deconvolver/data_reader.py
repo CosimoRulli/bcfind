@@ -91,10 +91,10 @@ dummy datareader
 import numpy as np
 if __name__ == "__main__":
     # csv_path = "/home/leonardo/Desktop/magi.csv"
-    csv_path = "/home/leonardo/workspaces/bcfind/dataset/patches.csv"
+    csv_path = "/home/cosimo/machine_learning_dataset/patches.csv"
     # orig_path = "/home/leonardo/workspaces/bcfind/dataset/3d_img"
-    gt_path = "/home/leonardo/workspaces/bcfind/dataset/GT/3d_gt"
-    orig_path = "/home/leonardo/workspaces/bcfind/dataset/GT/3d_gt"
+    gt_path = "/home/cosimo/machine_learning_dataset/gt_images"
+    orig_path = "/home/cosimo/machine_learning_dataset/3DImages_noflip"
 
     complete_dataframe = pd.read_csv(csv_path, comment="#",
                                      index_col=0, dtype={"img_name": str})
@@ -117,11 +117,11 @@ if __name__ == "__main__":
         gt_save = (gt_patches[0] * 255).numpy().astype(np.uint8)
         img_save = (patches[0] * 255).numpy().astype(np.uint8)
         print np.unique(gt_save - img_save)
-        print i
-        tifffile.imwrite('/home/leonardo/Desktop/tiff_test/' + name + '.tif',
+        #print i
+        tifffile.imwrite('/home/cosimo/Desktop/tiff_test/' + name + '.tif',
                          img_save, photometric='minisblack')
 
-        tifffile.imwrite('/home/leonardo/Desktop/tiff_test/'
+        tifffile.imwrite('/home/cosimo/Desktop/tiff_test/'
                          + name + '_gt.tif',
                          gt_save, photometric='minisblack')
         # train, gt = data_reader[0]

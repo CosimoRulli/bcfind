@@ -20,7 +20,8 @@ def stack_folder_torch(folder_path,folder_name,  new_path):
     file_list = os.listdir(folder_path)
     file_list.sort()
     new_file_path = os.path.join(new_path, folder_name)+'.pth'
-    np_images = [np.flipud(tifffile_sk.imread(os.path.join(folder_path, filename))) for filename in file_list]
+    #np_images = [np.flipud(tifffile_sk.imread(os.path.join(folder_path, filename))) for filename in file_list]
+    np_images = [tifffile_sk.imread(os.path.join(folder_path, filename)) for filename in file_list]
     print(len(np_images))
     np_images = np.stack(np_images, axis=0)
 
@@ -34,6 +35,7 @@ def create_3D_data(folders_path, new_path):
     for folder_name in os.listdir(folders_path):
         folder_path = os.path.join(folders_path, folder_name)
         stack_folder_torch(folder_path, folder_name, new_path)
+        stack_folder_tif(folder_path, folder_name, new_path)
 
 def get_parser():
     parser = argparse.ArgumentParser(
