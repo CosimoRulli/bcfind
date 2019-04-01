@@ -9,6 +9,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 import tifffile
 
+
 class DataReader(Dataset):
     """Documentation for DataReader
     Use a csv to select patch from entire substacks
@@ -47,6 +48,50 @@ class DataReader(Dataset):
 
 
 class DataReaderWeight(Dataset):
+    """Documentation for DataReader
+    magi
+    """
+    def __init__(self, img_dir, gt_dir, weight_dir, df,
+                 patch_size, transform=None):
+        super(DataReaderWeight, self).__init__()
+        self.img_dir = img_dir
+        self.gt_dir = gt_dir
+        self.weight_dir = weight_dir
+
+        self.patch_df = df
+        self.transforms = transform
+        self.patch_size = patch_size
+
+    def __len__(self):
+        return self.patch_df.shape[0]
+
+    def __getitem__(self, idx):
+        x, y, z, img_name = self.patch_df.iloc[idx]
+
+        img_path = os.path.join(self.img_dir, img_name) + ".pth"
+        gt_path = os.path.join(self.gt_dir, img_name) + "-GT.pth"
+        weight_path = (os.path.join(self.weight_dir, img_name)
+                       + "_weighted_map.pth")
+
+        image = torch.load(img_path)
+        gt = torch.load(gt_path)
+        weighted_map = torch.load(weight_path)
+
+        original_patch = image[x:x + self.patch_size,
+                               y:y + self.patch_size,
+                               z:z + self.patch_size].float()
+        gt_patch = gt[x:x + self.patch_size,
+                      y:y + self.patch_size,
+                      z:z + self.patch_size].float()
+
+        weight_patch = weighted_map[x:x + self.patch_size,
+                                    y:y + self.patch_size,
+                                    z:z + self.patch_size].float()
+
+        return original_patch / 255, gt_patch / 255, weight_patch
+
+
+class DataReaderWeight_old(Dataset):
     """Documentation for DataReader
     magi
     """
