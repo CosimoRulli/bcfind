@@ -24,6 +24,10 @@ def get_parser():
                         help="""Directory where the gt images
                         will be stored""")
 
+    parser.add_argument('target_dir_mask', metavar='targer_dir_mask', type=str,
+                        help="""Directory where the weighted mask
+                            will be stored""")
+
     parser.add_argument('sigma', metavar='sigma', type=float,
                         default=3.5,
                         help="""Sigma of the gaussian filter""")
@@ -79,7 +83,7 @@ def gt_builder_from_gaussian_filter(csv_path, sigma, truncate, flip):
     return gt_img, gt_seed
 
 
-def create_ground_truth(root_dir, target_dir, sigma=3.5, truncate=1.5,
+def create_ground_truth(root_dir, target_dir, target_dir_w_m, sigma=3.5, truncate=1.5,
                         flip=True,
                         visualize=False):
     flip = False
@@ -88,7 +92,7 @@ def create_ground_truth(root_dir, target_dir, sigma=3.5, truncate=1.5,
         gt_img, gt_seed = gt_builder_from_gaussian_filter(os.path.join(root_dir, _csv),
                                                  sigma, truncate,
                                                  flip)
-        file_name = _csv.split(".")[0]
+        file_name = _csv.split("-")[0]
 
         print file_name
 
@@ -98,9 +102,9 @@ def create_ground_truth(root_dir, target_dir, sigma=3.5, truncate=1.5,
         #     pickle.dump(torch_gt, f)
 
         torch.save(torch_gt,
-                   os.path.join(target_dir, file_name + ".pth"))
+                   os.path.join(target_dir, file_name + "-GT.pth"))
         torch.save(torch_seed,
-                   os.path.join(target_dir, file_name + "_weighted_map.pth"))
+                   os.path.join(target_dir_w_m, file_name + "_weighted_map.pth"))
         if visualize:
             tifffile.imwrite(os.path.join(target_dir, file_name + ".tif"),
                              gt_img, photometric='minisblack')
@@ -113,9 +117,11 @@ if __name__ == "__main__":
     parser = get_parser()
     args = parser.parse_args()
     if not os.path.isdir(args.target_dir):
-        os.makedirs(args.target_dir, args.visualize)
+        os.makedirs(args.target_dir)
+    if not os.path.isdir(args.target_dir_mask):
+        os.makedirs(args.target_dir_mask)
 
-    create_ground_truth(args.root_dir, args.target_dir,
+    create_ground_truth(args.root_dir, args.target_dir, args.target_dir_mask,
                         args.sigma, args.truncate, args.flip, args.visualize)
 
 # if __name__ == "__main__":
