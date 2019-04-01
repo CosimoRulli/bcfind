@@ -76,7 +76,7 @@ def gt_builder_from_gaussian_filter(csv_path, sigma, truncate, flip):
 
     # gt_img = gaussian(gt_seed, sigma=sigma, truncate=truncate)
     gt_img = gaussian_filter(gt_seed, sigma=sigma, truncate=truncate)
-    return gt_img
+    return gt_img, gt_seed
 
 
 def create_ground_truth(root_dir, target_dir, sigma=3.5, truncate=1.5,
@@ -85,7 +85,7 @@ def create_ground_truth(root_dir, target_dir, sigma=3.5, truncate=1.5,
     flip = False
     print flip
     for _csv in os.listdir(root_dir):
-        gt_img = gt_builder_from_gaussian_filter(os.path.join(root_dir, _csv),
+        gt_img, gt_seed = gt_builder_from_gaussian_filter(os.path.join(root_dir, _csv),
                                                  sigma, truncate,
                                                  flip)
         file_name = _csv.split(".")[0]
@@ -93,16 +93,20 @@ def create_ground_truth(root_dir, target_dir, sigma=3.5, truncate=1.5,
         print file_name
 
         torch_gt = torch.from_numpy(gt_img.astype('float16'))
-
+        torch_seed = torch.from_numpy  (gt_seed.astype('float16'))
         # with open(os.path.join(target_dir, file_name + ".pkl"), 'wb') as f:
         #     pickle.dump(torch_gt, f)
 
         torch.save(torch_gt,
                    os.path.join(target_dir, file_name + ".pth"))
-
+        torch.save(torch_seed,
+                   os.path.join(target_dir, file_name + "_weighted_map.pth"))
         if visualize:
             tifffile.imwrite(os.path.join(target_dir, file_name + ".tif"),
                              gt_img, photometric='minisblack')
+
+            tifffile.imwrite(os.path.join(target_dir, file_name + "_weighted_map.tiff"),
+                             gt_seed, photometric = 'minisblack')
 
 
 if __name__ == "__main__":
