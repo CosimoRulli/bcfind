@@ -32,6 +32,10 @@ def get_parser():
                         help="""Directory contaning the collection
                         of pth gt images""")
 
+    parser.add_argument('weight_dir', metavar='weight_dir', type=str,
+                        help="""Directory contaning the collection
+                        of weighted_map""")
+
     parser.add_argument('model_save_path', metavar='model_save_path', type=str,
                         help="""directory where the models will be saved""")
 
@@ -136,11 +140,13 @@ if __name__ == "__main__":
     train_df, val_df = train_test_split(complete_dataframe, test_size=0.2)
 
     train_dataset = DataReaderWeight(args.img_dir, args.gt_dir,
+                                     args.weight_dir,
                                      train_df, patch_size)
     train_loader = DataLoader(train_dataset, args.batch_size,
                               shuffle=True, num_workers=args.n_workers)
 
     validation_dataset = DataReaderWeight(args.img_dir, args.gt_dir,
+                                          args.weight_dir
                                           val_df, patch_size)
     validation_loader = DataLoader(validation_dataset, args.batch_size,
                                    shuffle=False, num_workers=args.n_workers)
