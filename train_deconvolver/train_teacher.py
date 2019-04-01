@@ -5,7 +5,7 @@ import torch
 from torch.utils.data import DataLoader
 import argparse
 import utils
-from data_reader import DataReader
+from data_reader import DataReader, DataReaderWeight
 from models.FC_teacher import FC_teacher
 from models.FC_teacher_max_p import FC_teacher_max_p
 import torch.nn as nn
@@ -35,50 +35,60 @@ def get_parser():
     parser.add_argument('model_save_path', metavar='model_save_path', type=str,
                         help="""directory where the models will be saved""")
 
-    parser.add_argument('batch_size', metavar='batch_size', type=int,
-                        default=8,
-                        help="""batch size, integer number""")
-
-    parser.add_argument('n_workers', metavar='n_workers', type=int,
-                        default=4,
-                        help="""number of workers for data loader""")
-
-    parser.add_argument('epochs', metavar='epochs', type=int,
-                        default=100,
-                        help="""number of training epochs""")
-
-    parser.add_argument('kernel_size', metavar='kernel_size', type=int,
-                        default=3,
-                        help="""size of the cubic kernel, provide only an integer e.
-                        g. kernel_size 3""")
-
-    parser.add_argument('max_pool_version', metavar='max_pool_version',
-                        type=bool,
-                        default=False,
-                        help="""whether to use the teacher with
-                        maxpooling layers set to true""")
-
-    parser.add_argument('initial_filters', metavar='initial_filters', type=int,
-                        default=4,
-                        help="""Number of filters in the initial conv layer""")
-
-    parser.add_argument('patch_size', metavar='patch_size', type=int,
-                        default=13,
-                        help="""size of the cubic patch, provide only an integer
-                        e.g. patch_zie 13""")
-
-    parser.add_argument('lr', metavar='lr', type=float,
-                        default=0.001,
-                        help="""learning rate""")
-
     parser.add_argument('device', metavar='device', type=str,
                         help="""device to use during training
                         and validation phase, e.g. cuda:0""")
 
-    parser.add_argument('root_log_dir', metavar='root_log_dir', type=str,
+    parser.add_argument('-w', '--weight', dest='soma_weight', type=float,
+                        default=1.0,
+                        help=""" wheight for class soma cell""")
+
+    parser.add_argument('-b', '--batch_size', dest='batch_size', type=int,
+                        default=8,
+                        help="""batch size, integer number""")
+
+    parser.add_argument('-t', '--n_workers', dest='n_workers', type=int,
+                        default=4,
+                        help="""number of workers for data loader""")
+
+    parser.add_argument('--epochs', dest='epochs', type=int,
+                        default=100,
+                        help="""number of training epochs""")
+
+    parser.add_argument('-k', '--kernel_size', dest='kernel_size', type=int,
+                        default=3,
+                        help="""size of the cubic kernel, provide only an integer e.
+                        g. kernel_size 3""")
+
+    parser.add_argument('--max_pool_version', dest='max_pool_version',
+                        action='store_true',
+                        help="""whether to use the teacher with
+                        maxpooling layers set to true""")
+
+    parser.add_argument('-f', '--initial_filters', dest='initial_filters',
+                        type=int,
+                        default=4,
+                        help="""Number of filters in the initial conv layer""")
+
+    parser.add_argument('-patch_size', dest='patch_size', type=int,
+                        default=13,
+                        help="""size of the cubic patch, provide only an integer
+                        e.g. patch_zie 13""")
+
+    parser.add_argument('--lr', dest='lr', type=float,
+                        default=0.001,
+                        help="""learning rate""")
+
+    parser.add_argument('-l', '--root_log_dir', dest='root_log_dir', type=str,
                         default=None,
                         help="""log directory for tensorbard""")
 
+    parser.add_argument('-n', '--name_dir', dest='name_dir', type=str,
+                        default=None,
+                        help="""name of the directory where  model will
+                        be stored""")
+
+    parser.set_defaults(max_pool_version=False)
     return parser
 
 
@@ -101,9 +111,21 @@ if __name__ == "__main__":
     parser = get_parser()
     args = parser.parse_args()
 
-    # create a directory for models
+    torch.manual_seed(9999)
+
+    # tensorboard configuration
+    default_log_dir = "/home/rulli_scommegna/tensorboard_log"
     datestring = datetime.strftime(datetime.now(), '%Y-%m-%d-%H-%M-%S')
-    model_save_path = os.path.join(args.model_save_path, datestring)
+    log_base = args.root_log_dir if args.root_log_dir else default_log_dir
+    name_dir = args.name_dir if args.name_dir else datestring
+    log_dir = os.path.join(log_base, name_dir)
+
+    writer = SummaryWriter(log_dir=log_dir)
+
+    # create a directory for models
+    # datestring = datetime.strftime(datetime.now(), '%Y-%m-%d-%H-%M-%S')
+    name_dir = args.name_dir if args.name_dir else datestring
+    model_save_path = os.path.join(args.model_save_path, name_dir)
     os.makedirs(model_save_path)
 
     complete_dataframe = pd.read_csv(args.csv_path, comment="#",
@@ -113,12 +135,13 @@ if __name__ == "__main__":
     # 80/20 splitting rule
     train_df, val_df = train_test_split(complete_dataframe, test_size=0.2)
 
-    train_dataset = DataReader(args.img_dir, args.gt_dir, train_df, patch_size)
+    train_dataset = DataReaderWeight(args.img_dir, args.gt_dir,
+                                     train_df, patch_size)
     train_loader = DataLoader(train_dataset, args.batch_size,
                               shuffle=True, num_workers=args.n_workers)
 
-    validation_dataset = DataReader(args.img_dir, args.gt_dir,
-                                    val_df, patch_size)
+    validation_dataset = DataReaderWeight(args.img_dir, args.gt_dir,
+                                          val_df, patch_size)
     validation_loader = DataLoader(validation_dataset, args.batch_size,
                                    shuffle=False, num_workers=args.n_workers)
 
@@ -138,16 +161,10 @@ if __name__ == "__main__":
 
     model.apply(utils.weights_init)
     # loss = nn.CrossEntropyLoss()
-    loss = nn.BCELoss()
+    # loss = nn.BCELoss()
+    # pos_w = torch.Tensor([1, args.soma_weight])
+    loss = nn.BCEWithLogitsLoss()
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
-
-    # tensorboard configuration
-    default_log_dir = "/home/rulli_scommegna/tensorboard_log"
-    current_time = datetime.now().strftime('%b%d_%H-%M-%S')
-    log_base = args.root_log_dir if args.root_log_dir else default_log_dir
-    log_dir = os.path.join(log_base, current_time)
-
-    writer = SummaryWriter(log_dir=log_dir)
 
     ############
     # Main loop
@@ -185,10 +202,11 @@ if __name__ == "__main__":
                 progress_bar = enumerate(validation_loader)
 
             for idx, patches in progress_bar:
-                img_patches, gt_patches = patches
+                img_patches, gt_patches, mask = patches
 
                 img_patches = img_patches.to(args.device)
                 gt_patches = gt_patches.to(args.device)
+                mask = mask.to(args.device)
 
                 with torch.set_grad_enabled(phase == 'train'):
                     model.zero_grad()
@@ -206,9 +224,11 @@ if __name__ == "__main__":
                     # print model_output_flat.shape
                     # print gt_patches_flat.shape
                     # print '****************************'
-
-                    calc_loss = loss(model_output, gt_patches)
-                    print calc_loss
+                    weighted_map = (mask * args.soma_weight) + 1
+                    loss.pos_weight = weighted_map.view(-1)
+                    calc_loss = loss(model_output.view(-1),
+                                     gt_patches.view(-1))
+                    # print calc_loss
                     losses[phase].append(calc_loss)
                     if phase == 'train':
                         calc_loss.backward()

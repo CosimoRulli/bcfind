@@ -9,19 +9,25 @@ class FC_teacher_max_p(nn.Module):
         self.n_filters = n_filters
         self.k_conv = k_conv
         self.k_t_conv = k_t_conv
-        #non riduce le dimensioni spaziali, aumenta soltanto il numero di filtri
-        self.conv1 = nn.Conv3d(input_channels, n_filters, self.k_conv, padding=1)
-        self.conv2 = nn.Conv3d(self.n_filters, self.n_filters*2, self.k_conv, padding=1)
-        self.conv3 = nn.Conv3d(self.n_filters*2, self.n_filters*4, self.k_conv, padding=1)
+        self.padding = k_conv // 2
+        # non riduce le dimensioni spaziali, aumenta soltanto il numero di filtri
+        self.conv1 = nn.Conv3d(input_channels,
+                               n_filters, self.k_conv, padding=self.padding)
+        self.conv2 = nn.Conv3d(self.n_filters,
+                               self.n_filters*2, self.k_conv,
+                               padding=self.padding)
+        self.conv3 = nn.Conv3d(self.n_filters*2,
+                               self.n_filters*4, self.k_conv,
+                               padding=self.padding)
 
 
-        #Deconvoluzioni con filtri 2x2x2 e stride 2 raddoppiano le dimensioni
+        # Deconvoluzioni con filtri 2x2x2 e stride 2 raddoppiano le dimensioni
         self.conv_t1 = nn.ConvTranspose3d(4 * n_filters, 2*n_filters,
                                           self.k_t_conv, stride=2)
         self.conv_t2 = nn.ConvTranspose3d(2*n_filters,
                                           n_filters, self.k_t_conv, stride=2)
 
-        #1x1x1 conv https://stats.stackexchange.com/questions/194142/what-does-1x1-convolution-mean-in-a-neural-network
+        # 1x1x1 conv https://stats.stackexchange.com/questions/194142/what-does-1x1-convolution-mean-in-a-neural-network
         self.conv1x1x1 = nn.Conv3d(self.n_filters, input_channels, 1)
 
         self.max_pool = nn.MaxPool3d(2)
@@ -51,10 +57,11 @@ class FC_teacher_max_p(nn.Module):
         output = self.relu(output)
 
         output = self.conv1x1x1(output)
-        output = self.sigmoid(output)
+        # output = self.sigmoid(output)
 
         return output.squeeze(1)
 
 if __name__=="__main__":
-    teacher = FC_teacher_max_p(4).to('cuda:0')
-    summary(teacher, input_size=(1,64,64,64))
+
+    teacher = FC_teacher_max_p(4, k_conv=7, k_t_conv=2).to('cuda:0')
+    summary(teacher, input_size=(64,64,64))

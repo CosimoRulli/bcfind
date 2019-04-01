@@ -54,7 +54,6 @@ def patch_generator(img_name, patch_size, img_dir, csv_dir, th=8,
                     perc=0.25, n_centers=1):
     '''extract patches from an entire substack
     without an overlap of at most 50%'''
-    counter_graylevel= 0
     overlap_percentage = (patch_size**3) * perc
 
     patch_distance =  int(patch_size * perc)
@@ -89,17 +88,19 @@ def patch_generator(img_name, patch_size, img_dir, csv_dir, th=8,
         #print([x,y,z])
         contains_cells = contains_centers([x, y, z],
                                           centers, patch_size, n_centers)
-        acceptable_graylevel = not_too_dark([x, y, z],
-                                            patch_size, original_image, th)
-        counter_graylevel += 1 if acceptable_graylevel and not contains_cells  else 0
-        if  contains_cells or acceptable_graylevel:
+        # acceptable_graylevel = not_too_dark([x, y, z],
+        #                                     patch_size, original_image, th)
+        # counter_graylevel += 1 if acceptable_graylevel and not contains_cells  else 0
+
+        # if  contains_cells or acceptable_graylevel:
+        if contains_cells:
             #print("choosen : "+ str([x,y,z]))
             mask[x:x+patch_size, y:y+patch_size, z:z+patch_size] = 1
 
             coord_list.append([x, y, z, img_name])
     #print("coord_list: ")
     #print(coord_list)
-    return pd.DataFrame(coord_list, columns=['x', 'y', 'z', 'img_name']), counter_graylevel
+    return pd.DataFrame(coord_list, columns=['x', 'y', 'z', 'img_name'])
 
 
 def patch_balancer(image_dir, csv_dir,target_dir, patch_size, threshold):
@@ -109,19 +110,14 @@ def patch_balancer(image_dir, csv_dir,target_dir, patch_size, threshold):
     img_names = [name.split(".")[0] for name in os.listdir(image_dir)  if name.split(".")[-1] == 'pth']
     print(img_names)
     df = pd.DataFrame(columns=['x', 'y', 'z', 'img_name'])
-    counter_graylevel =0
     for img_name in img_names:  # XXX in lettura pd scrivere ignore_index=True
         print img_name
         res = patch_generator(img_name, patch_size, image_dir, csv_dir, th=threshold)
 
-        #
         df=df.append(
-            res[0], ignore_index=True)
+            res, ignore_index=True)
 
-        counter_graylevel += res[1]
-
-    path_save_csv = os.path.join(target_dir, "patches.csv")
-
+    path_save_csv = os.path.join(target_dir, args.name_file + "_patches.csv")
 
     file = open(path_save_csv, 'a')
     comment = '# size='+ str(patch_size) + '\n'
@@ -129,7 +125,6 @@ def patch_balancer(image_dir, csv_dir,target_dir, patch_size, threshold):
     df.to_csv(file)
     file.close()
 
-    print counter_graylevel
 
 def get_parser():
     parser = argparse.ArgumentParser(
@@ -147,9 +142,16 @@ def get_parser():
     parser.add_argument('--patch_size', dest='patch_size', type=int,
                         help="""Patch dimension """)
 
-    parser.add_argument('--threshold',  dest = 'threshold', type = int,
+    parser.add_argument('--threshold',  dest='threshold', type = int,
+                        default=8,
                         help=""" Threshold to dark zones selection """)
+
+    parser.add_argument('--name',  dest='name_file', type=str,
+                        help=""" name for the csv file """)
+
     return parser
+
+
 if __name__ == "__main__":
 
     parser = get_parser()
