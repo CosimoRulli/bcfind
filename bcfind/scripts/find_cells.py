@@ -36,7 +36,8 @@ def main(args):
 
 
     substack = volume.SubStack(args.indir, args.substack_id)
-    substack.load_volume(pair_id=args.pair_id)
+    # ignore_info_files setted to true to avoid errors
+    substack.load_volume(pair_id=args.pair_id, ignore_info_files=True) 
     if args.local:
         mscd.pms(substack, args)
     else:

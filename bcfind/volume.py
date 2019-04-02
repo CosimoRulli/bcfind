@@ -355,7 +355,11 @@ class SubStack(object):
             elif os.path.exists(indir+'/info.plist'):
                 self.plist = plistlib.readPlist(indir+'/info.plist')
             else:
-                raise Exception('Input directory', indir, 'does not have a valid substack structure')
+                # only a random init to avoid errors
+                substack_dict = {substack_id: {'Files':'dummy files','Height':245, 'Width':281, 'Depth':280}}
+                self.plist = {'Height':245, 'Width':280, 'Depth':281,'SubStacks':substack_dict }
+
+                # raise Exception('Input directory', indir, 'does not have a valid substack structure')
         else:
             self.plist = plist
         self.indir = indir
