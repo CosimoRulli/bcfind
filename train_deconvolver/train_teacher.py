@@ -15,7 +15,7 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 from tensorboardX import SummaryWriter
 from datetime import datetime
-
+import torch.nn.functional as F
 
 def get_parser():
     parser = argparse.ArgumentParser(description=__doc__,
@@ -146,7 +146,7 @@ if __name__ == "__main__":
                               shuffle=True, num_workers=args.n_workers)
 
     validation_dataset = DataReaderWeight(args.img_dir, args.gt_dir,
-                                          args.weight_dir
+                                          args.weight_dir,
                                           val_df, patch_size)
     validation_loader = DataLoader(validation_dataset, args.batch_size,
                                    shuffle=False, num_workers=args.n_workers)
@@ -169,7 +169,7 @@ if __name__ == "__main__":
     # loss = nn.CrossEntropyLoss()
     # loss = nn.BCELoss()
     # pos_w = torch.Tensor([1, args.soma_weight])
-    loss = nn.BCEWithLogitsLoss()
+    #loss = nn.BCEWithLogitsLoss()
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
 
     ############
@@ -230,10 +230,12 @@ if __name__ == "__main__":
                     # print model_output_flat.shape
                     # print gt_patches_flat.shape
                     # print '****************************'
-                    weighted_map = (mask * args.soma_weight) + 1
-                    loss.pos_weight = weighted_map.view(-1)
-                    calc_loss = loss(model_output.view(-1),
-                                     gt_patches.view(-1))
+                    weighted_map = (mask * (args.soma_weight-1)) + 1
+                    #loss.pos_weight = weighted_map.view(-1)
+                    #calc_loss = loss(model_output.view(-1),
+                    #                 gt_patches.view(-1))
+                    calc_loss  = F.binary_cross_entropy_with_logits(model_output.view(-1),
+                                    gt_patches.view(-1), pos_weight=weighted_map.view(-1))
                     # print calc_loss
                     losses[phase].append(calc_loss)
                     if phase == 'train':
