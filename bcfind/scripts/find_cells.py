@@ -22,10 +22,10 @@ def main(args):
     mkdir_p(args.outdir+'/'+args.substack_id)
     if args.pair_id is None:
         tee.logto('%s/%s/log.txt' % (args.outdir, args.substack_id))
-	args.outdir=args.outdir+'/'+args.substack_id
+        args.outdir=args.outdir+'/'+args.substack_id
     else:
         tee.logto('%s/%s/log_%s.txt' % (args.outdir, args.substack_id, args.pair_id))
-	args.outdir=args.outdir+'/'+args.substack_id+'/'+args.pair_id
+        args.outdir=args.outdir+'/'+args.substack_id+'/'+args.pair_id
         mkdir_p(args.outdir)
 
     timers = [mscd.pca_analysis_timer, mscd.mean_shift_timer, mscd.ms_timer, mscd.patch_ms_timer]
