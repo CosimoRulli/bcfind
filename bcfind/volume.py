@@ -345,7 +345,9 @@ class SubStack(object):
     """
     def __init__(self, indir, substack_id, plist=None):
         if not os.path.isdir(indir+'/'+substack_id):
-            raise Exception('Substack', substack_id, 'not found in', indir)
+            print ('Dummy implementation')
+            #todo commentato
+            #raise Exception('Substack', substack_id, 'not found in', indir)
         if plist is None:
             if os.path.exists(indir+'/info.json'):
                 self.plist = ujson.loads(open(indir+'/info.json').read())
@@ -427,6 +429,39 @@ class SubStack(object):
                 tee.log('.', end='')
         tee.log(z, 'images read into stack')
 
+
+    def load_volume_from_3D(self, batch,convert_to_gray=True, flip=False, ignore_info_files=False, h5filename=None, pair_id=None ):
+        """Loads a sequence of images into a stack
+
+                Parameters
+                ----------
+                batch : np.array
+                    Tensor of shape W,H,D with values between 0 and 1
+                convert_to_gray : bool
+                    Should be set to true if reading from RGB tiff files
+                flip : bool
+                    Flip along vertical (Y) axis
+                ignore_info_files : bool
+                    If true, don't trust filenames in the info.json file
+                h5filename : str
+                    If not none, read from this HDF5 file rather than TIFF files
+                """
+        self.imgs = []
+        self.pixels = []
+        for z in range(batch.shape[2]):
+
+
+            img_z =Image.fromarray(batch[:,:,z]*255)
+            if flip:  # when reading a stack saved in vaa3d format Y coordinates are reversed (used by save_substack only)
+                img_z = img_z.transpose(Image.FLIP_TOP_BOTTOM)
+            if convert_to_gray:
+                img_z = img_z.convert('L')
+            self.imgs.append(img_z)
+            self.pixels.append(img_z.load())
+
+        tee.log(z +1, 'images read into stack')
+
+        pass
     def get_volume(self, convert_to_gray=True, flip=False, ignore_info_files=False, h5filename=None):
 	if not hasattr(self, 'imgs'):
 	    self.load_volume(convert_to_gray, flip, ignore_info_files, h5filename)

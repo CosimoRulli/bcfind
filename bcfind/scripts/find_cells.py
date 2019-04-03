@@ -4,6 +4,7 @@ Main script for finding cell soma using the mean shift algorithm
 """
 
 from __future__ import print_function
+from __future__ import absolute_import
 import time
 import datetime
 import platform
@@ -13,7 +14,9 @@ from bcfind.log import tee
 from bcfind import mscd
 from bcfind import threshold
 from bcfind import volume
-
+#from utils import mkdir_p
+#from log import tee
+#import mscd,threshold, volume
 
 def main(args):
     st = datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S')
@@ -34,10 +37,14 @@ def main(args):
     for t in timers:
         t.reset()
 
-
+    # dovremmo passare le informazinoi su w,h,d tramite pslist
     substack = volume.SubStack(args.indir, args.substack_id)
     # ignore_info_files setted to true to avoid errors
-    substack.load_volume(pair_id=args.pair_id, ignore_info_files=True) 
+    substack.load_volume(pair_id=args.pair_id, ignore_info_files=True)
+    #todo la nostra versione è questa
+    #substack.load_volume_from_3D()
+
+    #todo lo script va lanciato per ogni volume
     if args.local:
         mscd.pms(substack, args)
     else:
