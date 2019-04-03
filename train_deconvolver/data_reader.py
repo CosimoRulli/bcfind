@@ -159,8 +159,6 @@ def get_parser():
                         action='store', type=float, default=6,
                         help='Radius of the seed selection ball (r)')
 
-
-
     parser.add_argument('-f', '--floating_point', dest='floating_point', action='store_true',
                         help='If true, cell centers are saved in floating point.')
 

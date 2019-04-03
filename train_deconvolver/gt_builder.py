@@ -36,15 +36,14 @@ def get_parser():
                         default=1.5,
                         help="""parameter for truncate gaussin
                         filter wrt sigma""")
+    parser.add_argument('--visualize', dest='visualize', action="store_true",
+                        help="""Creates also the tif img""")
 
-    parser.add_argument('flip', metavar='flip', type=bool,
-                        default=True,
-                        help="""If True flips x and z axis""")
+    parser.add_argument("--flip", dest ="flip", action="store_true",
+                        help = "flip y axis")
 
-    parser.add_argument('visualize', metavar='visualize', type=bool,
-                        default=False,
-                        help="""If True creates also the tif img""")
-
+    parser.set_defaults(flip = False)
+    parser.set_defaults(visualize = False)
     return parser
 
 
@@ -86,7 +85,7 @@ def gt_builder_from_gaussian_filter(csv_path, sigma, truncate, flip):
 def create_ground_truth(root_dir, target_dir, target_dir_w_m, sigma=3.5, truncate=1.5,
                         flip=True,
                         visualize=False):
-    flip = False
+    #flip = False
     print flip
     for _csv in os.listdir(root_dir):
         gt_img, gt_seed = gt_builder_from_gaussian_filter(os.path.join(root_dir, _csv),

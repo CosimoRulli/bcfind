@@ -347,6 +347,7 @@ class SubStack(object):
         if not os.path.isdir(indir+'/'+substack_id):
             print ('Dummy implementation')
             #todo commentato
+
             #raise Exception('Substack', substack_id, 'not found in', indir)
         if plist is None:
             if os.path.exists(indir+'/info.json'):
