@@ -88,12 +88,12 @@ def patch_generator(img_name, patch_size, img_dir, csv_dir, th=8,
         #print([x,y,z])
         contains_cells = contains_centers([x, y, z],
                                           centers, patch_size, n_centers)
-        # acceptable_graylevel = not_too_dark([x, y, z],
-        #                                     patch_size, original_image, th)
+        acceptable_graylevel = not_too_dark([x, y, z],
+                                            patch_size, original_image, th)
         # counter_graylevel += 1 if acceptable_graylevel and not contains_cells  else 0
 
-        # if  contains_cells or acceptable_graylevel:
-        if contains_cells:
+        if  contains_cells or acceptable_graylevel:
+        #if contains_cells:
             #print("choosen : "+ str([x,y,z]))
             mask[x:x+patch_size, y:y+patch_size, z:z+patch_size] = 1
 
