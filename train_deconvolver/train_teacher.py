@@ -74,11 +74,6 @@ def get_parser():
                         default=4,
                         help="""Number of filters in the initial conv layer""")
 
-    parser.add_argument('-patch_size', dest='patch_size', type=int,
-                        default=13,
-                        help="""size of the cubic patch, provide only an integer
-                        e.g. patch_zie 13""")
-
     parser.add_argument('--lr', dest='lr', type=float,
                         default=0.001,
                         help="""learning rate""")
