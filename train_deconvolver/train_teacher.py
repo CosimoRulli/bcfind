@@ -231,6 +231,11 @@ if __name__ == "__main__":
                     #                 gt_patches.view(-1))
                     calc_loss  = F.binary_cross_entropy_with_logits(model_output.view(-1),
                                     gt_patches.view(-1), pos_weight=weighted_map.view(-1))
+
+                    # TODO: aggiungere i pesi
+                    # calc_loss = F.binary_cross_entropy_with_logits(model_output,
+                    #                                               gt_patches)
+
                     # print calc_loss
                     losses[phase].append(calc_loss)
                     if phase == 'train':

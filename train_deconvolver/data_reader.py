@@ -51,6 +51,34 @@ class DataReader(Dataset):
         return original_patch / 255, gt_patch / 255
 
 
+class DataReaderSubstack(Dataset):
+    """Documentation for DataReader
+
+    """
+    def __init__(self, img_dir, gt_dir, df, transform=None):
+        super(DataReaderSubstack, self).__init__()
+        self.img_dir = img_dir
+        self.gt_dir = gt_dir
+
+        self.substack_df = df
+        self.transforms = transform
+
+    def __len__(self):
+        return self.substack_df.shape[0]
+
+    def __getitem__(self, idx):
+        img_name = self.substack_df.iloc[idx]
+        # img_name = str(img_name)
+        img_path = os.path.join(self.img_dir, img_name) + ".pth"
+        # img_path = os.path.join(self.img_dir, img_name) + "-GT.pth"
+        gt_path = os.path.join(self.gt_dir, img_name) + "-GT.pth"
+        # print img_path
+        image = torch.load(img_path)
+        gt = torch.load(gt_path)
+
+        return image / 255, gt / 255
+
+
 class DataReaderWeight(Dataset):
     """Documentation for DataReader
     magi
