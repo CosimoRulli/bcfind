@@ -8,11 +8,11 @@ import pandas as pd
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 import tifffile
-from bcfind import volume
-import bcfind.volume
-import argparse
-from bcfind import mscd
-
+#from bcfind import volume
+#import bcfind.volume
+#import argparse
+#from bcfind import mscd
+from utils import *
 
 class DataReader(Dataset):
     """Documentation for DataReader
@@ -70,7 +70,7 @@ class DataReaderSubstack(Dataset):
         return self.substack_df.shape[0]
 
     def __getitem__(self, idx):
-        img_name = self.substack_df.iloc[idx]
+        img_name = self.substack_df.iloc[idx]['name']
         # img_name = str(img_name)
         img_path = os.path.join(self.img_dir, img_name) + ".pth"
         # img_path = os.path.join(self.img_dir, img_name) + "-GT.pth"
@@ -191,6 +191,10 @@ def get_parser():
                         help="""Directory contaning the collection
                             of weighted_map""")
 
+    parser.add_argument('centers_path', metavar='centers_path', type=str,
+                        help="""Directory contaning the collection
+                                of centers markers""")
+
     parser.add_argument('outdir', metavar='outdir', type=str,
                         help="""Directory where prediction results will be saved, e.g. outdir/100905/ms.marker.
                         Will be created or overwritten""")
@@ -244,14 +248,23 @@ if __name__ == "__main__":
     orig_path= args.img_dir
     gt_path = args.gt_dir
     weight_path = args.weight_dir
+    centers_path = args.centers_path
 
-    complete_dataframe = pd.read_csv(csv_path, comment="#",
+    complete_dataframe = pd.read_csv(csv_path,
                                      index_col=0, dtype={"img_name": str})
-    patch_size = int(str(pd.read_csv(csv_path, nrows=1, header=None).
-                         take([0])).split("=")[-1])
+    #patch_size = int(str(pd.read_csv(csv_path, nrows=1, header=None).
+    #                     take([0])).split("=")[-1])
 
-    data_reader = DataReaderWeight(orig_path, gt_path, weight_path,
-                                    complete_dataframe, patch_size)
+    #data_reader = DataReaderWeight(orig_path, gt_path, weight_path,
+    #                                complete_dataframe, patch_size)
+    print orig_path
+    print gt_path
+    print centers_path
+    print weight_path
+    print 'df'
+    print complete_dataframe
+    data_reader = DataReaderSubstack(orig_path, gt_path, centers_path,  weight_path, complete_dataframe)
+
     data_loader = DataLoader(data_reader, 1,
                              shuffle=True, num_workers=1)
 
@@ -259,21 +272,22 @@ if __name__ == "__main__":
     # print train
 
     total_iteration = len(data_loader)
+    print data_reader[0]
     progress_bar = tqdm(enumerate(data_loader), total=total_iteration)
     for i, patches in progress_bar:
-        img_patches, gt_patches, mask = patches
+        img, gt, mask, centers_df = patches
 
-
-        img_patch_numpy = img_patches[0].numpy()
-        substack_id = '0'
-        substack_dict = {substack_id: {'Files': 'dummy files', 'Height': 64, 'Width': 64, 'Depth': 64}}
-        plist = {'Height': 64, 'Width': 64, 'Depth': 64, 'SubStacks': substack_dict}
-        patch = volume.SubStack('', substack_id, plist)
-        patch.load_volume_from_3D(img_patch_numpy)
-        mscd.ms(patch, args )
+        print(evaluate_metrics(img, centers_df, args))
+        #img_patch_numpy = img_patches[0].numpy()
+        #substack_id = '0'
+        #substack_dict = {substack_id: {'Files': 'dummy files', 'Height': 64, 'Width': 64, 'Depth': 64}}
+        #plist = {'Height': 64, 'Width': 64, 'Depth': 64, 'SubStacks': substack_dict}
+        #patch = volume.SubStack('', substack_id, plist)
+        #patch.load_volume_from_3D(img_patch_numpy)
+        #mscd.ms(patch, args )
         #centers = gt_patches == 255
 
-        print(centers)
+        #print(centers)
         break
         #name = str(np.random.randint(1000))
         #gt_save = (gt_patches[0] * 255).numpy().astype(np.uint8)
