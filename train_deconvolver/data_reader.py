@@ -55,10 +55,13 @@ class DataReaderSubstack(Dataset):
     """Documentation for DataReader
 
     """
-    def __init__(self, img_dir, gt_dir, df, transform=None):
+    def __init__(self, img_dir, gt_dir, centers_dir,
+                 weight_dir, df, transform=None):
         super(DataReaderSubstack, self).__init__()
         self.img_dir = img_dir
         self.gt_dir = gt_dir
+        self.centers_dir = centers_dir
+        self.weight_dir = weight_dir
 
         self.substack_df = df
         self.transforms = transform
@@ -72,11 +75,20 @@ class DataReaderSubstack(Dataset):
         img_path = os.path.join(self.img_dir, img_name) + ".pth"
         # img_path = os.path.join(self.img_dir, img_name) + "-GT.pth"
         gt_path = os.path.join(self.gt_dir, img_name) + "-GT.pth"
-        # print img_path
-        image = torch.load(img_path)
-        gt = torch.load(gt_path)
+        centers_path = os.path.join(self.center_dir, img_name) + "-GT.marker"
+        weight_path = (os.path.join(self.weight_dir, img_name)
+                       + "_weighted_map.pth")
 
-        return image / 255, gt / 255
+        # print img_path
+        image = torch.load(img_path).float()
+        gt = torch.load(gt_path).float()
+        weighted_map = torch.load(weight_path).float()
+
+        centers_df = pd.read_csv(centers_path, usecols=[0, 1, 2])
+        if '#x' in centers_df.keys():  # fix some Vaa3d garbage
+            centers_df.rename(columns={'#x': 'x'}, inplace=True)
+
+        return image / 255, gt / 255, weighted_map, centers_df
 
 
 class DataReaderWeight(Dataset):
