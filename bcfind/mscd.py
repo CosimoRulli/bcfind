@@ -222,13 +222,15 @@ def ms(substack, args):
         C.append(c)
         tee.log(i, cc, c)
 
-    
-    filename = args.outdir+'/ms.marker'
-    substack.save_markers(filename, C, floating_point=args.floating_point)
-    tee.log('Markers saved to', filename)
-    filename = args.outdir+'/seeds.marker'
-    substack.save_markers(filename, seeds)
-    tee.log(len(seeds), 'seeds saved to', filename)
+    if not args.evaluation:
+        filename = args.outdir+'/ms.marker'
+        substack.save_markers(filename, C, floating_point=args.floating_point)
+        tee.log('Markers saved to', filename)
+        filename = args.outdir+'/seeds.marker'
+        substack.save_markers(filename, seeds)
+        tee.log(len(seeds), 'seeds saved to', filename)
+    else:
+        tee.log('Markers not saved')
 
     up_outdir=dirname(abspath(args.outdir))
     if args.save_image:
@@ -241,6 +243,8 @@ def ms(substack, args):
         tee.log('Debugging images saved in',up_outdir)
     else:
         tee.log('Debugging images not saved')
+
+    return C, seeds
 
 @patch_ms_timer.timed
 def _patch_ms(patch, args):
