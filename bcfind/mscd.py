@@ -243,7 +243,8 @@ def ms(substack, args):
         tee.log('Debugging images saved in',up_outdir)
     else:
         tee.log('Debugging images not saved')
-
+    tee.log(C)
+    tee.log(seeds)
     return C, seeds
 
 @patch_ms_timer.timed

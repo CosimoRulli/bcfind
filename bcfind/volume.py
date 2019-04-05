@@ -98,6 +98,9 @@ class Center(object):
         self.z = z
         self.hue = 0
         self.reset()
+        #todo aggiunto cosimo
+
+        self.name = ''
 
     def reset(self):
         self.sum_x = 0        # accumulator for barycenter
@@ -360,7 +363,7 @@ class SubStack(object):
             else:
                 # only a random init to avoid errors
                 substack_dict = {substack_id: {'Files':'dummy files','Height':245, 'Width':281, 'Depth':280}}
-                self.plist = {'Height':245, 'Width':280, 'Depth':281,'SubStacks':substack_dict }
+                self.plist = {'Height':245, 'Width':280, 'Depth':281,'Margin':40,'SubStacks':substack_dict }
 
                 # raise Exception('Input directory', indir, 'does not have a valid substack structure')
         else:
@@ -449,10 +452,11 @@ class SubStack(object):
                 """
         self.imgs = []
         self.pixels = []
-        for z in range(batch.shape[2]):
-
-
-            img_z =Image.fromarray(batch[:,:,z]*255)
+        for z in range(batch.shape[0]):
+            data = (batch[z,:,:,]*255).astype('uint8')
+            #data = data.squeeze(0)
+            #tee.log(data.shape)
+            img_z =Image.fromarray(data, mode='L')
             if flip:  # when reading a stack saved in vaa3d format Y coordinates are reversed (used by save_substack only)
                 img_z = img_z.transpose(Image.FLIP_TOP_BOTTOM)
             if convert_to_gray:

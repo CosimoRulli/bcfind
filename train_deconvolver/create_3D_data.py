@@ -61,5 +61,5 @@ if __name__ == "__main__":
     new_path = "/home/cosimo/machine_learning_dataset/3DImages"
     parser = get_parser()
     args = parser.parse_args()
-    print()
+    print(args.flip)
     create_3D_data(args.folders_path, args.new_path, args.flip)

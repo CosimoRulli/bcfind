@@ -23,7 +23,6 @@ def inside(c,substack):
 
 
 def eval_perf_icp(substack,C_true,C_pred,verbose=True,errors_marker_file=None, max_cell_diameter=None):
-
     _,good_true,good_pred,_,_ = match_markers_with_icp(C_true,C_pred, max_distance = max_cell_diameter/2.,num_iterations = 0, eps=1e-8, verbose=False) 
 
     c_pred_matched=[C_pred[i] for i in good_pred]
@@ -429,6 +428,10 @@ def main(args):
         print('Ground truth file',gt_markers,'not found. Bailing out')
         sys.exit(1)
 
+
+    # todo ############
+    #i centri del gt sono in C_true
+
     if args.pair_id is None:
         errors_marker_file = args.outdir+'/'+args.substack_id+'/errors.marker'
         pred_markers = args.outdir+'/'+args.substack_id+'/ms.marker'
@@ -442,6 +445,10 @@ def main(args):
     except IOError:
         print('Warning: prediction marker file',pred_markers,'not found. Assuming empty volume')
         C_pred = []
+    # todo ##########
+
+    # todo le predizioni sono dentro C_pred
+
     if args.manifold_distance:
         try:
             for c in C_pred:
