@@ -8,7 +8,7 @@ matplotlib.use('Agg')
 import sys
 import itertools
 import argparse
-import pylab
+#import pylab
 
 from bcfind.volume import *
 from bcfind.markers import distance, match_markers, match_markers_with_icp
@@ -108,7 +108,7 @@ def eval_perf_icp(substack,C_true,C_pred,verbose=True,errors_marker_file=None, m
     C_true_inside = [c for c in C_true if inside(c,substack)]
     print('|pred|=%d |true|=%d  P: %.2f / R: %.2f / F1: %.2f ==== TP: %d / FP: %d / FN: %d' % (len(C_pred_inside),len(C_true_inside),precision*100,recall*100,F1*100,len(TP_inside),len(FP_inside),len(FN_inside)))
     
-    return precision,recall,F1,TP_inside,FP_inside,FN_inside
+    return precision,recall,F1,len(TP_inside),len(FP_inside),len(FN_inside)
  
 
 
