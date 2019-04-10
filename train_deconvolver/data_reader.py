@@ -75,7 +75,7 @@ class DataReaderSubstack(Dataset):
         img_path = os.path.join(self.img_dir, img_name) + ".pth"
         # img_path = os.path.join(self.img_dir, img_name) + "-GT.pth"
         gt_path = os.path.join(self.gt_dir, img_name) + "-GT.pth"
-        centers_path = os.path.join(self.center_dir, img_name) + "-GT.marker"
+        centers_path = os.path.join(self.centers_dir, img_name) + "-GT.marker"
         weight_path = (os.path.join(self.weight_dir, img_name)
                        + "_weighted_map.pth")
 
@@ -90,6 +90,57 @@ class DataReaderSubstack(Dataset):
 
         return image / 255, gt / 255, weighted_map, centers_df
 
+
+class DataReader_2map(Dataset):
+    """Documentation for DataReader
+    magi
+    """
+    def __init__(self, img_dir, gt_dir, weight_dir, no_weight_dir, df,
+                 patch_size, transform=None):
+        super(DataReader_2map, self).__init__()
+        self.img_dir = img_dir
+        self.gt_dir = gt_dir
+        self.weight_dir = weight_dir
+        self.no_weight_dir = no_weight_dir
+
+        self.patch_df = df
+        self.transforms = transform
+        self.patch_size = patch_size
+
+    def __len__(self):
+        return self.patch_df.shape[0]
+
+    def __getitem__(self, idx):
+        x, y, z, img_name = self.patch_df.iloc[idx]
+
+        img_path = os.path.join(self.img_dir, img_name) + ".pth"
+        gt_path = os.path.join(self.gt_dir, img_name) + "-GT.pth"
+        weight_path = (os.path.join(self.weight_dir, img_name)
+                       + "_weighted_map.pth")
+        no_weight_path = (os.path.join(self.no_weight_dir, img_name)
+                          + "_no_weight_map.pth")
+
+        image = torch.load(img_path)
+        gt = torch.load(gt_path)
+        weighted_map = torch.load(weight_path)
+        no_weight_map = torch.load(no_weight_path)
+
+        original_patch = image[x:x + self.patch_size,
+                               y:y + self.patch_size,
+                               z:z + self.patch_size].float()
+        gt_patch = gt[x:x + self.patch_size,
+                      y:y + self.patch_size,
+                      z:z + self.patch_size].float()
+
+        weight_patch = weighted_map[x:x + self.patch_size,
+                                    y:y + self.patch_size,
+                                    z:z + self.patch_size].float()
+
+        no_weight_patch = no_weight_map[x:x + self.patch_size,
+                                        y:y + self.patch_size,
+                                        z:z + self.patch_size].float()
+
+        return original_patch / 255, gt_patch / 255, weight_patch, no_weight_patch
 
 class DataReaderWeight(Dataset):
     """Documentation for DataReader
