@@ -71,6 +71,7 @@ class DataReaderSubstack(Dataset):
 
     def __getitem__(self, idx):
         img_name = self.substack_df.iloc[idx]['name']
+        print img_name
         # img_name = str(img_name)
         img_path = os.path.join(self.img_dir, img_name) + ".pth"
         # img_path = os.path.join(self.img_dir, img_name) + "-GT.pth"
@@ -88,7 +89,8 @@ class DataReaderSubstack(Dataset):
         if '#x' in centers_df.keys():  # fix some Vaa3d garbage
             centers_df.rename(columns={'#x': 'x'}, inplace=True)
 
-        return image / 255, gt / 255, weighted_map, centers_df
+        #centers = [Center(row['x'], row['y'], row['z']) for _, row in ]
+        return image / 255, gt / 255, weighted_map, torch.Tensor(centers_df.values)
 
 
 class DataReader_2map(Dataset):
@@ -278,7 +280,22 @@ def get_parser():
     parser.add_argument('-p', '--pair_id', dest='pair_id',
                         action='store', type=str,
                         help="id of the pair of views, e.g 000_090. A folder with this name will be created inside outdir/substack_id")
+    parser.add_argument('-D', '--max_cell_diameter', dest='max_cell_diameter', type=float, default=16.0,
+                        help='Maximum diameter of a cell')
+    parser.add_argument('-d', '--manifold-distance', dest='manifold_distance', type=float, default=None,
+                        help='Maximum distance from estimated manifold to be included as a prediction')
+    parser.add_argument('-c', '--curve', dest='curve', action='store_true', help='Make a recall-precision curve.')
+    parser.add_argument('-g', '--ground_truth_folder', dest='ground_truth_folder', type=str, default=None,
+                        help='folder containing merged marker files (for multiview images)')
+    parser.add_argument('-v', '--verbose', dest='verbose', action='store_true', help='Verbose output.')
+    parser.add_argument('--do_icp', dest='do_icp', action='store_true',
+                        help='Use the ICP matching procedure to evaluate the performance')
+
+    parser.add_argument('-e', dest='evaluation', action='store_true')
+
     parser.set_defaults(save_image=False)
+    parser.set_defaults(evaluation=False)
+
     return parser
 
 
@@ -302,18 +319,22 @@ if __name__ == "__main__":
     centers_path = args.centers_path
 
     complete_dataframe = pd.read_csv(csv_path,
-                                     index_col=0, dtype={"img_name": str})
+                                     index_col=0, dtype={"name": str})
     #patch_size = int(str(pd.read_csv(csv_path, nrows=1, header=None).
     #                     take([0])).split("=")[-1])
 
     #data_reader = DataReaderWeight(orig_path, gt_path, weight_path,
     #                                complete_dataframe, patch_size)
-    print orig_path
-    print gt_path
-    print centers_path
-    print weight_path
-    print 'df'
-    print complete_dataframe
+    #print orig_path
+    #print gt_path
+    #print centers_path
+    #print weight_path
+    #print 'df'
+    #print complete_dataframe
+    from torchvision import transforms
+
+
+
     data_reader = DataReaderSubstack(orig_path, gt_path, centers_path,  weight_path, complete_dataframe)
 
     data_loader = DataLoader(data_reader, 1,
@@ -323,12 +344,16 @@ if __name__ == "__main__":
     # print train
 
     total_iteration = len(data_loader)
-    print data_reader[0]
+    #print data_reader[0]
+    print total_iteration
     progress_bar = tqdm(enumerate(data_loader), total=total_iteration)
+
     for i, patches in progress_bar:
         img, gt, mask, centers_df = patches
+        print img.shape
+        #print img
 
-        print(evaluate_metrics(img, centers_df, args))
+        print(evaluate_metrics(gt.squeeze(0), centers_df.squeeze(0), args))
         #img_patch_numpy = img_patches[0].numpy()
         #substack_id = '0'
         #substack_dict = {substack_id: {'Files': 'dummy files', 'Height': 64, 'Width': 64, 'Depth': 64}}

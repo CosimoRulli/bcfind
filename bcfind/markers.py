@@ -141,6 +141,8 @@ def match_markers_with_icp(C1,C2, max_distance,num_iterations = 100, eps=1e-8, v
     Simon, D.A.: Fast and accurate shape-based registration. Ph.D. thesis, Pittsburgh, PA, USA
     (1996)
     """
+
+
     c1 = np.array([[c.x, c.y, c.z] for c in C1])
     c2 = np.array([[c.x, c.y, c.z] for c in C2])
 
