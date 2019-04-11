@@ -53,11 +53,11 @@ def place_centers(mask, center_df):
     return mask
 
 
-def place_centers_dilated(mask, center_df):
+def place_centers_dilated(mask, center_df, ball_size=5):
     temp = np.zeros(dim)
     for idx, center in center_df.iterrows():
         temp[center.x, center.y, center.z] = 1
-    temp = binary_dilation(temp, ball(5))
+    temp = binary_dilation(temp, ball(ball_size))
     mask[temp] = 255
     return mask
 
@@ -79,10 +79,19 @@ def gt_builder_from_gaussian_filter(csv_path, sigma, truncate, flip):
 
     # gt_img = gaussian(gt_seed, sigma=sigma, truncate=truncate)
     gt_img = gaussian_filter(gt_seed, sigma=sigma, truncate=truncate)
-    return gt_img, gt_seed
+
+    # #####new_wmap#####
+    # center_neighborhood = place_centers_dilated(np.copy(gt_clear),
+    #                                              centers_df, ball_size=8)
+    center_neighborhood = binary_dilation(gt_img, ball(3))
+    no_weight_map = (center_neighborhood).astype(np.uint16) - gt_seed
+    # ##################
+
+    return gt_img, gt_seed, no_weight_map
 
 
-def create_ground_truth(root_dir, target_dir, target_dir_w_m, sigma=3.5, truncate=1.5,
+def create_ground_truth(root_dir, target_dir, target_dir_w_m,
+                        sigma=3.5, truncate=1.5,
                         flip=True,
                         visualize=False):
     #flip = False
@@ -112,6 +121,47 @@ def create_ground_truth(root_dir, target_dir, target_dir_w_m, sigma=3.5, truncat
                              gt_seed, photometric = 'minisblack')
 
 
+def create_gt_and_wmap(root_dir, target_dir, target_dir_w_m,
+                       target_dir_map_no_w, sigma=3.5, truncate=1.5,
+                       flip=True,
+                       visualize=False):
+    #flip = False
+    print flip
+    for _csv in os.listdir(root_dir):
+        gt_img, gt_seed, no_wmap = gt_builder_from_gaussian_filter(os.path.join(root_dir, _csv),
+                                                 sigma, truncate,
+                                                 flip)
+        file_name = _csv.split("-")[0]
+
+        print file_name
+        print np.sum(no_wmap - gt_seed)
+
+        torch_gt = torch.from_numpy(gt_img.astype('float16'))
+        torch_seed = torch.from_numpy(gt_seed.astype('float16'))
+        torch_no_wmap = torch.from_numpy(no_wmap.astype('float16'))
+
+        # with open(os.path.join(target_dir, file_name + ".pkl"), 'wb') as f:
+        #     pickle.dump(torch_gt, f)
+
+        torch.save(torch_gt,
+                   os.path.join(target_dir, file_name + "-GT.pth"))
+        torch.save(torch_seed,
+                   os.path.join(target_dir_w_m, file_name + "_weighted_map.pth"))
+        torch.save(torch_no_wmap,
+                os.path.join(target_dir_map_no_w, file_name + "_no_weight_map.pth"))
+
+        if visualize:
+            tifffile.imwrite(os.path.join(target_dir, file_name + ".tif"),
+                             gt_img, photometric='minisblack')
+
+            tifffile.imwrite(os.path.join(target_dir, file_name + "_weighted_map.tiff"),
+                             gt_seed, photometric = 'minisblack')
+
+            tifffile.imwrite(os.path.join(target_dir, file_name + "_no_weighted_map.tiff"),
+                             no_wmap, photometric = 'minisblack')
+
+
+
 if __name__ == "__main__":
     parser = get_parser()
     args = parser.parse_args()
@@ -120,8 +170,13 @@ if __name__ == "__main__":
     if not os.path.isdir(args.target_dir_mask):
         os.makedirs(args.target_dir_mask)
 
-    create_ground_truth(args.root_dir, args.target_dir, args.target_dir_mask,
-                        args.sigma, args.truncate, args.flip, args.visualize)
+    create_gt_and_wmap(args.root_dir, args.target_dir, args.target_dir,
+                       args.target_dir,
+                       args.sigma, args.truncate, args.flip, args.visualize)
+
+
+    # create_ground_truth(args.root_dir, args.target_dir, args.target_dir_mask,
+    #                    args.sigma, args.truncate, args.flip, args.visualize)
 
 # if __name__ == "__main__":
 #     "for testing purpose"
