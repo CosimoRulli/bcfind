@@ -23,7 +23,7 @@ def inside(c,substack):
 
 
 def eval_perf_icp(substack,C_true,C_pred,verbose=True,errors_marker_file=None, max_cell_diameter=None):
-    _,good_true,good_pred,_,_ = match_markers_with_icp(C_true,C_pred, max_distance = max_cell_diameter/2.,num_iterations = 0, eps=1e-8, verbose=False) 
+    _,good_true,good_pred,_,_ = match_markers_with_icp(C_true,C_pred, max_distance = max_cell_diameter/2.,num_iterations = 0, eps=1e-8, verbose=False)
 
     c_pred_matched=[C_pred[i] for i in good_pred]
     c_true_matched=[C_true[i] for i in good_true]
@@ -122,8 +122,13 @@ def eval_perf(substack,C_true,C_pred,verbose=True,errors_marker_file=None,rp_fil
     TP = 0
     TP_inside = []
     G,mate,node2center = match_markers(C_true,C_pred, 2*max_cell_diameter)
+
     kw = 0
-    for k1,k2 in mate.iteritems():
+    tee.log(mate)
+    #todo modificato
+    #tee.log(type(mate))
+    #for k1,k2 in mate.iteritems():
+    for k1, k2 in mate:
         if k1[0] == 'p':  # mate is symmetric
             continue
         c1 = node2center[k1]

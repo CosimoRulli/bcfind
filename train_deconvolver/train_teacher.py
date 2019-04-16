@@ -17,6 +17,7 @@ from tensorboardX import SummaryWriter
 from datetime import datetime
 import torch.nn.functional as F
 
+
 def get_parser():
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.
@@ -208,7 +209,30 @@ if __name__ == "__main__":
                 img_patches = img_patches.to(args.device)
                 gt_patches = gt_patches.to(args.device)
                 mask = mask.to(args.device)
+                import tifffile
+                import numpy as np
+                import sys
 
+                for i in range(img_patches.shape[0]):
+                    #map_save = (weighted_map_temp[i] * 255).numpy().astype(np.uint8)
+                    img_save = (img_patches[i].clone() * 255).cpu().numpy().astype(np.uint8)
+                    gt_save = (gt_patches[i].clone() * 255).cpu().numpy().astype(np.uint8)
+                    name = np.random.randint(1000)
+                    #tifffile.imwrite(os.path.join(
+                    #    "/home/leonardo/Desktop/map_test_2/" + str(name) + "_map.tiff"),
+                    #    map_save, photometric='minisblack')
+
+                    tifffile.imwrite(os.path.join(
+                        "/home/cosimo/Desktop/map_test_2/" + str(name) + "_gt.tiff"),
+                        gt_save)
+
+                    tifffile.imwrite(os.path.join(
+                        "/home/cosimo/Desktop/map_test_2/" + str(name) + "_img.tiff"),
+                        img_save)
+                    print '####################'
+                    # print np.sum(no_wmap.numpy())
+                    print '####################'
+                continue
                 with torch.set_grad_enabled(phase == 'train'):
                     model.zero_grad()
                     model_output = model(img_patches)
@@ -229,9 +253,12 @@ if __name__ == "__main__":
                     #loss.pos_weight = weighted_map.view(-1)
                     #calc_loss = loss(model_output.view(-1),
                     #                 gt_patches.view(-1))
-                    calc_loss  = F.binary_cross_entropy_with_logits(model_output.view(-1),
-                                    gt_patches.view(-1), pos_weight=weighted_map.view(-1))
-
+                    #calc_loss  = F.binary_cross_entropy_with_logits(model_output.view(-1),
+                    #                gt_patches.view(-1), pos_weight=weighted_map.view(-1))
+                    calc_loss = torch.mean( weighted_map.view(-1) *
+                                            F.binary_cross_entropy_with_logits(
+                                                model_output.view(-1),
+                                                gt_patches.view(-1), reduce='none'))
                     # TODO: aggiungere i pesi
                     # calc_loss = F.binary_cross_entropy_with_logits(model_output,
                     #                                               gt_patches)

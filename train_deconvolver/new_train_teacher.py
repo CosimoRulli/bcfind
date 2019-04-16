@@ -17,7 +17,8 @@ from tensorboardX import SummaryWriter
 from datetime import datetime
 import torch.nn.functional as F
 from utils import *
-
+import sys
+import warnings
 
 def get_parser():
     parser = argparse.ArgumentParser(description=__doc__,
@@ -90,10 +91,11 @@ def get_parser():
                         default=None,
                         help="""name of the directory where  model will
                         be stored""")
+    return parser
 
-    parser.set_defaults(max_pool_version=False)
-    #################################################
-    #Questa parte di args serve per la valutazione delle performance; ricalca il vecchio codice di bcfind
+
+def additional_namespace_arguments(parser):
+    '''
     parser.add_argument('-r', '--hi_local_max_radius', metavar='r', dest='hi_local_max_radius',
                         action='store', type=float, default=6,
                         help='Radius of the seed selection ball (r)')
@@ -104,7 +106,7 @@ def get_parser():
     parser.add_argument('-m', '--min_second_threshold', metavar='min_second_threshold', dest='min_second_threshold',
                         action='store', type=int, default=15,
                         help="""If the foreground (second threshold in multi-Kapur) is below this value
-                               then the substack is too dark and assumed to contain no soma""")
+                                   then the substack is too dark and assumed to contain no soma""")
     parser.add_argument('-loc', '--local', dest='local', action='store_true',
                         help='Perform local processing by dividing the volume in 8 parts.')
     # parser.set_defaults(local=True)
@@ -134,18 +136,27 @@ def get_parser():
                         help='Use the ICP matching procedure to evaluate the performance')
 
     parser.add_argument('-e', dest='evaluation', action='store_true')
-
+    '''
+    parser.set_defaults(hi_local_max_radius=6)
+    #parser.set_defaults()
+    parser.set_defaults(min_second_threshold =15)
+    parser.set_defaults(mean_shift_bandwidth = 5.5)
+    parser.set_defaults(seeds_filtering_mode='soft')
+    parser.set_defaults(max_expected_cells = 10000)
+    parser.set_defaults(max_cell_diameter = 16.0)
+    parser.set_defaults(verbose = False)
     parser.set_defaults(save_image=False)
-    parser.set_defaults(evaluation=False)
+    parser.set_defaults(evaluation=True)
+    parser.set_defaults(do_icp= True)
+    parser.set_defaults(manifold_distance = 40)
 
 
-    #################################################
+def blockPrint():
+    sys.stdout = open(os.devnull, 'w')
 
-
-
-    return parser
-
-
+# Restore
+def enablePrint():
+    sys.stdout = sys.__stdout__
 
 def criterium_to_save():
     return True
@@ -162,7 +173,7 @@ def print_and_save_losses(losses, metrics, writer, epoch):
         )
 
     for key in metrics.keys():
-        metrics[key] = torch.tensor(metrics[key]).mean().item()
+        metrics[key] = torch.tensor(metrics[key]).float().mean().item()
         print 'Validation {} : {:.3f} '.format(key, metrics[key])
         writer.add_scalars(
             'metrics',
@@ -172,10 +183,11 @@ def print_and_save_losses(losses, metrics, writer, epoch):
 
 if __name__ == "__main__":
     parser = get_parser()
+    additional_namespace_arguments(parser)
     args = parser.parse_args()
 
     torch.manual_seed(9999)
-
+    sigmoid = nn.Sigmoid()
     # tensorboard configuration
     default_log_dir = "/home/rulli_scommegna/tensorboard_log"
     datestring = datetime.strftime(datetime.now(), '%Y-%m-%d-%H-%M-%S')
@@ -243,6 +255,9 @@ if __name__ == "__main__":
 
     metrics = {}
 
+    best_f1 = -1
+    best_epoch = 0
+
     for epoch in range(args.epochs):
 
         print("epoch [{}/{}]".format(epoch, args.epochs))
@@ -282,7 +297,7 @@ if __name__ == "__main__":
 
 
 
-        print 'Validation Phase'
+        print '\nValidation Phase'
         model.eval()
         losses['validation'] = []
         dataset = validation_dataset
@@ -305,9 +320,7 @@ if __name__ == "__main__":
                 weighted_map = (mask * (args.soma_weight - 1)) + 1
 
                 #print model_output.shape
-                print gt.shape
                 gt_ad = adapt_dimension(gt)
-                print gt_ad.shape
                 flat_gt = gt_ad.contiguous().view(-1)
                 calc_loss = F.binary_cross_entropy_with_logits(model_output.view(-1),
                                                                flat_gt,
@@ -315,82 +328,33 @@ if __name__ == "__main__":
 
                 losses['validation'].append(calc_loss)
 
-                print 'Computing accuracy'
-                precision, recall, F1, TP_inside, FP_inside, FN_inside = evaluate_metrics(model_output.squeeze(0), centers_df.squeeze(0), args)
+                #print 'Computing accuracy'
+                blockPrint()
+                #ricalcolo senza adattare le dimensioni
+                model_output = model(img)
+
+                with warnings.catch_warnings():
+                    warnings.simplefilter('ignore')
+                    print torch.max(sigmoid(model_output))
+                    precision, recall, F1, TP_inside, FP_inside, FN_inside = evaluate_metrics(sigmoid(model_output).squeeze(), centers_df.squeeze(), args)
+                enablePrint()
 
                 metrics['precision'] = precision
                 metrics['recall'] = recall
                 metrics['F1'] = F1
 
+                if F1 > best_f1:
+                    best_f1  = F1
+                    best_epoch = epoch
+                    file_name = os.path.join(args.model_save_path, args.name_dir,  "best.txt")
+                    with open(file_name, "w") as f:
+                        f.write("best epoch: "+str(epoch)+"\n")
+                        f.write("F1: "+str(F1))
 
-    print_and_save_losses(losses,metrics,  writer, epoch)
-
-    # sometimes we save the model
-    if criterium_to_save():
-        torch.save(model.state_dict(),
-                   os.path.join(model_save_path,
-                                '{}_teacher'.format(epoch)))
-'''
-    for epoch in range(args.epochs):
-        print("epoch [{}/{}]".format(epoch, args.epochs))
-
-        for phase in ['train', 'validation']:
-
-            print("Phase: {}".format(phase))
-
-            if phase == 'train':
-                model.train()
-            else:
-                model.eval()
-
-            losses[phase] = []
-
-            dataset = train_dataset
-
-            total_iterations = len(dataset) // args.batch_size + 1
-
-            # progress_bar = enumerate(total=total_iterations)
-
-            if phase == 'train':
-                progress_bar = tqdm(enumerate(train_loader),
-                                    total=total_iterations)
-            else:
-                progress_bar = enumerate(validation_loader)
-
-            for idx, patches in progress_bar:
-
-                img_patches, gt_patches, mask = patches
-
-                img_patches = img_patches.to(args.device)
-                gt_patches = gt_patches.to(args.device)
-                mask = mask.to(args.device)
-
-                with torch.set_grad_enabled(phase == 'train'):
-                    model.zero_grad()
-                    model_output = model(img_patches)
-                    weighted_map = (mask * (args.soma_weight - 1)) + 1
-                    # loss.pos_weight = weighted_map.view(-1)
-                    # calc_loss = loss(model_output.view(-1),
-                    #                 gt_patches.view(-1))
-                    calc_loss = F.binary_cross_entropy_with_logits(model_output.view(-1),
-                                                                   gt_patches.view(-1),
-                                                                   pos_weight=weighted_map.view(-1))
-
-                    # TODO: aggiungere i pesi
-                    # calc_loss = F.binary_cross_entropy_with_logits(model_output,
-                    #                                               gt_patches)
-
-                    losses[phase].append(calc_loss)
-                    if phase == 'train':
-                        calc_loss.backward()
-                        optimizer.step()
-      
-        # after each epoch we print and save in tensorboard the losses
-        print_and_save_losses(losses, writer, epoch)
+        print_and_save_losses(losses,metrics,  writer, epoch)
 
         # sometimes we save the model
         if criterium_to_save():
             torch.save(model.state_dict(),
                        os.path.join(model_save_path,
                                     '{}_teacher'.format(epoch)))
-'''

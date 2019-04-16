@@ -13,6 +13,9 @@ import tifffile
 #import argparse
 #from bcfind import mscd
 from utils import *
+import numpy as np
+#import matplotlib.pyplot as plt
+
 
 class DataReader(Dataset):
     """Documentation for DataReader
@@ -71,7 +74,7 @@ class DataReaderSubstack(Dataset):
 
     def __getitem__(self, idx):
         img_name = self.substack_df.iloc[idx]['name']
-        print img_name
+        #print img_name
         # img_name = str(img_name)
         img_path = os.path.join(self.img_dir, img_name) + ".pth"
         # img_path = os.path.join(self.img_dir, img_name) + "-GT.pth"
@@ -187,44 +190,45 @@ class DataReaderWeight(Dataset):
 
         return original_patch / 255, gt_patch / 255, weight_patch
 
-
-class DataReaderWeight_old(Dataset):
+class DataReaderSubstackTest(Dataset):
     """Documentation for DataReader
-    magi
+
     """
-    def __init__(self, img_dir, gt_dir, df, patch_size, transform=None):
-        super(DataReaderWeight, self).__init__()
+    def __init__(self, img_dir, gt_dir, centers_dir,
+                 df, transform=None):
+        super(DataReaderSubstackTest, self).__init__()
         self.img_dir = img_dir
         self.gt_dir = gt_dir
-
-        self.patch_df = df
+        self.centers_dir = centers_dir
+        self.substack_df = df
         self.transforms = transform
-        self.patch_size = patch_size
 
     def __len__(self):
-        return self.patch_df.shape[0]
+        return self.substack_df.shape[0]
 
     def __getitem__(self, idx):
-        x, y, z, img_name = self.patch_df.iloc[idx]
+        img_name = self.substack_df.iloc[idx]['name']
+        #print img_name
         # img_name = str(img_name)
         img_path = os.path.join(self.img_dir, img_name) + ".pth"
         # img_path = os.path.join(self.img_dir, img_name) + "-GT.pth"
         gt_path = os.path.join(self.gt_dir, img_name) + "-GT.pth"
+        centers_path = os.path.join(self.centers_dir, img_name) + "-GT.marker"
+
         # print img_path
-        image = torch.load(img_path)
-        gt = torch.load(gt_path)
+        image = torch.load(img_path).float()
+        gt = torch.load(gt_path).float()
 
-        original_patch = image[x:x + self.patch_size,
-                               y:y + self.patch_size,
-                               z:z + self.patch_size].float()
-        gt_patch = gt[x:x + self.patch_size,
-                      y:y + self.patch_size,
-                      z:z + self.patch_size].float()
+        centers_df = pd.read_csv(centers_path, usecols=[0, 1, 2])
+        if '#x' in centers_df.keys():  # fix some Vaa3d garbage
+            centers_df.rename(columns={'#x': 'x'}, inplace=True)
 
-        # mask = torch.zeros((self.patch_size, self.patch_size, self.patch_size))
-        mask = gt_patch != 0
+        #centers = [Center(row['x'], row['y'], row['z']) for _, row in ]
+        return image / 255, gt / 255, torch.Tensor(centers_df.values), img_name
 
-        return original_patch / 255, gt_patch / 255, mask.float()
+
+
+
 
 def get_parser():
     parser = argparse.ArgumentParser(description=__doc__,
@@ -352,10 +356,13 @@ if __name__ == "__main__":
         img, gt, mask, centers_df = patches
         print img.shape
         #print img
+        print gt.type()
 
+        print torch.max(gt)
+        #print gt
         print(evaluate_metrics(gt.squeeze(0), centers_df.squeeze(0), args))
         #img_patch_numpy = img_patches[0].numpy()
-        #substack_id = '0'
+        #substack_id = '0'x
         #substack_dict = {substack_id: {'Files': 'dummy files', 'Height': 64, 'Width': 64, 'Depth': 64}}
         #plist = {'Height': 64, 'Width': 64, 'Depth': 64, 'SubStacks': substack_dict}
         #patch = volume.SubStack('', substack_id, plist)

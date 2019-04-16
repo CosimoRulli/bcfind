@@ -101,6 +101,7 @@ def patch_generator(img_name, patch_size, img_dir, csv_dir, th=8,
             mask[x:x+patch_size, y:y+patch_size, z:z+patch_size] = 1
 
             coord_list.append([x, y, z, img_name])
+            #print type(x)
     #print("coord_list: ")
     #print(coord_list)
     return pd.DataFrame(coord_list, columns=['x', 'y', 'z', 'img_name'])
@@ -169,7 +170,7 @@ def generate_csvs(image_dir, csv_dir, target_dir, train_csv_name, val_test_csv_n
     test_csv = [[test_name, 'TEST'] for test_name in test_images]
     df_test = pd.DataFrame(test_csv, columns=['name', 'split'])
     df_val_test = df_val_test.append(df_test)
-    path_save_csv_val_test = os.path.join(target_dir, val_test_csv_name)
+    path_save_csv_val_test = os.path.join(target_dir, val_test_csv_name +'.csv')
     df_val_test.to_csv(path_save_csv_val_test)
 
 

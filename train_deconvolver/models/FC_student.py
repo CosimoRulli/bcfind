@@ -2,10 +2,10 @@ from torchsummary import summary
 import torch.nn as nn
 
 
-class FC_teacher_max_p(nn.Module):
+class FC_student(nn.Module):
 
     def __init__(self, n_filters, k_conv=3, k_t_conv = 2, input_channels=1):
-        super(FC_teacher_max_p, self).__init__()
+        super(FC_student, self).__init__()
         self.input_channels = input_channels
         self.n_filters = n_filters
         self.k_conv = k_conv
@@ -17,10 +17,11 @@ class FC_teacher_max_p(nn.Module):
         self.conv2 = nn.Conv3d(self.n_filters,
                                self.n_filters*2, self.k_conv,
                                padding=self.padding)
+        '''
         self.conv3 = nn.Conv3d(self.n_filters*2,
                                self.n_filters*4, self.k_conv,
                                padding=self.padding)
-
+        '''
 
         # Deconvoluzioni con filtri 2x2x2 e stride 2 raddoppiano le dimensioni
         self.conv_t1 = nn.ConvTranspose3d(4 * n_filters, 2*n_filters,
@@ -46,23 +47,26 @@ class FC_teacher_max_p(nn.Module):
 
         output = self.conv2(output)
         output = self.relu(output)
+        '''
         output = self.max_pool(output)
-
+    
         output = self.conv3(output)
         output = self.relu(output)
         #output = self.max_pool(output)
-
+        
         output = self.conv_t1(output)
+        
         #output = self.relu(output)
+        '''
         output = self.conv_t2(output)
         output = self.relu(output)
 
         output = self.conv1x1x1(output)
-        output = self.sigmoid(output)
+        #output = self.sigmoid(output)
 
         return output.squeeze(1)
 
 if __name__=="__main__":
 
-    teacher = FC_teacher_max_p(4, k_conv=7, k_t_conv=2).to('cuda:0')
-    summary(teacher, input_size=(280,244,280))
+    teacher = FC_student(4, k_conv=7, k_t_conv=2).to('cuda:0')
+    summary(teacher, input_size=(64,64,64))

@@ -46,4 +46,4 @@ class FC_teacher(nn.Module):
 if __name__ == "__main__":
     print('magi')
     teacher = FC_teacher(3, 4, 8, 13).to('cuda:0')
-    summary(teacher, input_size=(1, 23, 23, 23))
+    summary(teacher, input_size=( 1,23, 23, 23))

@@ -3,7 +3,7 @@ import torch
 
 from bcfind import volume
 from bcfind import mscd
-from bcfind.scripts.eval_perf import eval_perf_icp
+from bcfind.scripts.eval_perf import eval_perf_icp, eval_perf
 import pandas as pd
 from bcfind.volume import *
 import numpy as np
@@ -37,7 +37,6 @@ def convert_df_to_centers(gt_dataframe):
     return centers_list
 
 def evaluate_metrics(pred_tensor, gt_dataframe, args):
-    #todo convertire gt_dataframe in Centers
     '''
 
 
@@ -62,6 +61,8 @@ def evaluate_metrics(pred_tensor, gt_dataframe, args):
         C_pred= res[0]
         pred_seed = res[1]
         C_true = convert_df_to_centers(gt_dataframe)
+
+
         if args.manifold_distance:
             try:
                 for c in C_pred:
@@ -89,6 +90,10 @@ def evaluate_metrics(pred_tensor, gt_dataframe, args):
 def get_parser():
     parser = argparse.ArgumentParser(description=__doc__,
                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    '''
+    parser.add_argument('outdir', metavar='outdir', type=str,
+                        help="""Directory where prediction results will be saved, e.g. outdir/100905/ms.marker.
+                           Will be created or overwritten""")
     parser.add_argument('-r', '--hi_local_max_radius', metavar='r', dest='hi_local_max_radius',
                         action='store', type=float, default=6,
                         help='Radius of the seed selection ball (r)')
@@ -125,27 +130,44 @@ def get_parser():
     parser.add_argument('-g', '--ground_truth_folder', dest='ground_truth_folder', type=str, default=None,
                         help='folder containing merged marker files (for multiview images)')
     parser.add_argument('-v', '--verbose', dest='verbose', action='store_true', help='Verbose output.')
-    parser.add_argument('--do_icp', dest='do_icp', action='store_true',
-                        help='Use the ICP matching procedure to evaluate the performance')
+    #parser.add_argument('--do_icp', dest='do_icp', action='store_true',
+    #                    help='Use the ICP matching procedure to evaluate the performance')
 
-    parser.add_argument('-e', dest='evaluation', action='store_true')
+    #parser.add_argument('-e', dest='evaluation', action='store_true')
     parser.add_argument('-out', metavar='outdir', )
     parser.set_defaults(save_image=False)
     parser.set_defaults(evaluation=False)
-
+    '''
     return parser
 
 
 if __name__=="__main__":
     parser = get_parser()
+    parser.add_argument('-e', dest='evaluation', action='store_true')
+    parser.set_defaults(evaluation= True)
+    parser.set_defaults(hi_local_max_radius=6)
+    # parser.set_defaults()
+    parser.set_defaults(min_second_threshold=15)
+    parser.set_defaults(mean_shift_bandwidth=5.5)
+    parser.set_defaults(seeds_filtering_mode='soft')
+    parser.set_defaults(max_expected_cells=10000)
+    parser.set_defaults(max_cell_diameter=16.0)
+    parser.set_defaults(verbose=False)
+    parser.set_defaults(save_image=False)
+    parser.set_defaults(evaluation=True)
+    parser.set_defaults(do_icp=True)
+    parser.set_defaults(manifold_distance=40)
+    parser.set_defaults(do_icp= True)
     args = parser.parse_args()
     im = torch.load("/home/cosimo/Desktop/output.pth").float()
     print(torch.max(im) )
-    centers_df = pd.read_csv("/home/cosimo/machine_learning_dataset/GT/TomoDec13/042908-GT.marker", usecols=[0, 1, 2])
+    centers_df = pd.read_csv("/home/cosimo/machine_learning_dataset/GT/TomoDec13/072411-GT.marker", usecols=[0, 1, 2])
     if '#x' in centers_df.keys():  # fix some Vaa3d garbage
         centers_df.rename(columns={'#x': 'x'}, inplace=True)
-        centers_df.rename(columns={'x': 'z', 'z': 'x'}, inplace=True)
+        #centers_df.rename(columns={'x': 'z', 'z': 'x'}, inplace=True)
     import warnings
     with warnings.catch_warnings():
         warnings.simplefilter('ignore')
-        print(evaluate_metrics(im.squeeze(), torch.Tensor(centers_df.values).squeeze(), args))
+        #todo rimuovere /255
+        res = evaluate_metrics(im.squeeze(), torch.Tensor(centers_df.values).squeeze(), args)
+        print (type(res [0]))
