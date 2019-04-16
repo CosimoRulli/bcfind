@@ -292,26 +292,27 @@ def _patch_ms(patch, args):
     local_mass = mh.convolve(patch, weights=f, mode='constant', cval=0.0)
     above = local_mass > min_mass
     himaxima = np.logical_and(reg_maxima,above)
+
+    ######################################
+    # # todo modificato per debug, eliminare
+    # from skimage.morphology import binary_dilation
+    # from skimage.morphology import ball
+    # img = np.zeros(patch.shape)
+
+    # centers_list = [[x, y, z] for (x, y, z) in zip(*np.where(himaxima))]
+    # tee.log(centers_list)
+    # #temp = binary_dilation(np.array(centers_list), ball(5))
+    # img[centers_list] = 255
+    # dilated_img = binary_dilation(img, ball(3))
+    # #tee.log(len(centers_list))
+    # img.astype(np.uint8)
+    # import tifffile
+    # tifffile.imwrite("/home/leonardo/Desktop/massimilocali.tif", img, photometric='minisblack')
+    ###############################
+
     #tee.log(himaxima)
     if np.sum(himaxima) > args.max_expected_cells:
         tee.log('Too many candidates,', np.sum(himaxima), 'I believe this substack is messy and give up')
-
-
-        ######################################
-        # todo modificato per debug, eliminare
-        from skimage.morphology import binary_dilation
-        from skimage.morphology import ball
-        img = np.zeros(patch.shape)
-
-        centers_list = [(x, y, z) for (x, y, z) in zip(*np.where(himaxima))]
-        #tee.log(centers_list)
-        #temp = binary_dilation(np.array(centers_list), ball(5))
-        img[np.array(centers_list)] = 255
-        #tee.log(len(centers_list))
-        img.astype(np.uint8)
-        import tifffile
-        tifffile.imwrite("/home/cosimo/Desktop/massimilocali.tif", img, photometric='minisblack')
-        ###############################
 
 
         return None

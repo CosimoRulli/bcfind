@@ -139,12 +139,15 @@ def get_parser():
 if __name__=="__main__":
     parser = get_parser()
     args = parser.parse_args()
-    im = torch.load("/home/cosimo/Desktop/output.pth").float()
-    print(torch.max(im) )
-    centers_df = pd.read_csv("/home/cosimo/machine_learning_dataset/GT/TomoDec13/042908-GT.marker", usecols=[0, 1, 2])
+    im = torch.load("/home/leonardo/Desktop/output.pth").float()
+    print(torch.max(im))
+    centers_df = pd.read_csv(
+        "/home/leonardo/workspaces/bcfind/dataset/GT/TomoDec13/073608-GT.marker",
+        usecols=[0, 1, 2])
+
     if '#x' in centers_df.keys():  # fix some Vaa3d garbage
         centers_df.rename(columns={'#x': 'x'}, inplace=True)
-        centers_df.rename(columns={'x': 'z', 'z': 'x'}, inplace=True)
+        # centers_df.rename(columns={'x': 'z', 'z': 'x'}, inplace=True)
     import warnings
     with warnings.catch_warnings():
         warnings.simplefilter('ignore')

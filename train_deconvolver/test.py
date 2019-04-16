@@ -1,13 +1,14 @@
 from __future__ import absolute_import
 
 import torch
+import torch.nn as nn
 import os
 import argparse
 
 import utils
 import numpy as np
 
-from data_reader import DataReader
+# from data_reader import DataReader
 
 # from models.FC_teacher import FC_teacher
 from models.FC_teacher_max_p import FC_teacher_max_p
@@ -26,6 +27,8 @@ if __name__ == "__main__":
     img = img.float()/255
     print(torch.max(img))
 
+    sigmoid = nn.Sigmoid()
+
     # model_path = "/home/cosimo/0_teacher"
     model_path = "/home/leonardo/workspaces/bcfind/dataset/models/special_loss/38_teacher"
     model = FC_teacher_max_p(8, k_conv=7).to('cuda:0')
@@ -35,7 +38,7 @@ if __name__ == "__main__":
     img = img.to('cuda:0')
     print img.shape
     with torch.set_grad_enabled(False):
-        output = model(img)
+        output = sigmoid(model(img))
 
     #print(output)
     print(torch.max(output))
