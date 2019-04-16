@@ -3,6 +3,7 @@ import pickle
 from torch.utils.data import Dataset
 import torch
 import pandas as pd
+import argparse
 # from PIL import Image
 # from torchvision import transforms
 from torch.utils.data import DataLoader
@@ -12,7 +13,7 @@ import tifffile
 #import bcfind.volume
 #import argparse
 #from bcfind import mscd
-from utils import *
+#from utils import *
 import numpy as np
 #import matplotlib.pyplot as plt
 
@@ -302,7 +303,7 @@ def get_parser():
 
     return parser
 
-
+'''
 if __name__ == "__main__":
     parser = get_parser()
     args = parser.parse_args()
@@ -379,7 +380,7 @@ if __name__ == "__main__":
         #print np.unique(gt_save - img_save)
         #print i
 
-        '''
+        
         tifffile.imwrite('/home/leonardo/Desktop/tiff_test/' + name + '.tif',
                          img_save, photometric='minisblack')
 
@@ -389,7 +390,6 @@ if __name__ == "__main__":
         tifffile.imwrite('/home/leonardo/Desktop/tiff_test/'
                          + name + '_gt.tif',
                          gt_save, photometric='minisblack')
-
-        # train, gt = data_reader[0]
+        
+        # print train
         '''
-    # print train
