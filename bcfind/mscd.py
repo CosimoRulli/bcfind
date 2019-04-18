@@ -268,7 +268,7 @@ def _patch_ms(patch, args):
     (Lx,Ly,Lz) = np.where(patch > minint)
 
     intensities = patch[(Lx,Ly,Lz)]
-    L = np.array(zip(Lx,Ly,Lz), dtype=np.uint16)
+    L = np.array(list(zip(Lx,Ly,Lz)), dtype=np.uint16)
     tee.log('Found', len(L), 'voxels above the threshold', minint)
     if len(L) < 10:
         tee.log('Too few points (%d) - I believe there are no cells in this substack' % len(L))

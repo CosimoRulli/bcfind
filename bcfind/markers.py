@@ -6,9 +6,16 @@ import numpy as np
 from bcfind.volume import Center
 from clsm_registration.estimate_registration import horn_method
 
-def distance((x1,y1,z1),(x2,y2,z2)):
+def distance(point1,point2):
+    x1, y1, z1 = point1
+    x2, y2, z2 = point2
     return math.sqrt((x1-x2)**2 + (y1-y2)**2 + (z1-z2)**2)
 
+
+try:
+    xrange          # Python 2
+except NameError:
+    xrange = range  # Python 3
 
 def match_markers(C1,C2, max_distance,verbose=False):
     """Match true and predicted markers using max-weight bipartite matching
@@ -47,7 +54,7 @@ def match_markers(C1,C2, max_distance,verbose=False):
                 w = 1.0/max(0.001,d)
                 G.add_edge(ni,nj,weight=w)
     if verbose:
-	print("Solving max weight matching (%d nodes, %d edges)" % (len(G.nodes()), len(G.edges())))
+        print("Solving max weight matching (%d nodes, %d edges)" % (len(G.nodes()), len(G.edges())))
     mate = networkx.algorithms.matching.max_weight_matching(G,maxcardinality=False)
     return G,mate,node2center
 
@@ -97,7 +104,7 @@ def compute_matches(c1,c2,max_distance):
             dist_matrix[:,ind_col]=max_distance
             good1.append(ind_row)
             good2.append(ind_col)
-	    distances.append(min_dist)
+            distances.append(min_dist)
         else:
             end_match=True
         j-=1

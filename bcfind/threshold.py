@@ -6,7 +6,10 @@ import math
 from bcfind import timer
 
 multi_kapur_timer = timer.Timer('Multi Kapur')
-
+try:
+    xrange          # Python 2
+except NameError:
+    xrange = range  # Python 3
 
 def _info(p):
     if p > 0:

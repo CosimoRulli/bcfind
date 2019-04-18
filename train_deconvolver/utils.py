@@ -31,7 +31,7 @@ def adapt_dimension(tensor):
 def convert_df_to_centers(gt_dataframe):
     centers_list = []
     for i in range(gt_dataframe.shape[0]):
-        center = Center(gt_dataframe[i,0], gt_dataframe[i,1], gt_dataframe[i,2])
+        center = Center(gt_dataframe[i,0].item(), gt_dataframe[i,1].item(), gt_dataframe[i,2].item())
         centers_list.append(center)
 
     return centers_list
@@ -61,7 +61,8 @@ def evaluate_metrics(pred_tensor, gt_dataframe, args):
         C_pred= res[0]
         pred_seed = res[1]
         C_true = convert_df_to_centers(gt_dataframe)
-
+        print("################################à")
+        print(type(C_true[0]))
 
         if args.manifold_distance:
             try:

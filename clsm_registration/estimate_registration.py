@@ -40,7 +40,8 @@ def arun_method(X, T): # Assumes both or Nx3 matrices
     X_mean = X.mean(0)
     T_mean = T.mean(0)
     # Compute covariance
-    H = reduce(lambda s, (a,b) : s + np.outer(a, b), zip(X - X_mean, T - T_mean), np.zeros((3,3)))
+    #H = reduce(lambda s, (a,b) : s + np.outer(a, b), zip(X - X_mean, T - T_mean), np.zeros((3,3)))
+    H = reduce(lambda s, pair: s + np.outer(pair[0], pair[1]), zip(X - X_mean, T - T_mean), np.zeros((3, 3)))
     u, s, v = np.linalg.svd(H)
     R = v.T.dot(u.T) # Rotation
     t = - R.dot(X_mean) + T_mean # Translation
@@ -172,9 +173,9 @@ def horn_method(X, T, weights, verbose=False):
     normalized_centroid_T = np.dot(np.transpose(T), normalized_weights)
 
     if verbose:
-        print "normalized input centroid: " + str(normalized_centroid_X)
-        print "normalized target centroid: " + str(normalized_centroid_T)
-        print "normalized weights: " + str(normalized_weights)
+        print ("normalized input centroid: " + str(normalized_centroid_X))
+        print ("normalized target centroid: " + str(normalized_centroid_T))
+        print ("normalized weights: " + str(normalized_weights))
 
     Xnew = np.array([p - normalized_centroid_X for p in X])
     Tnew = np.array([p - normalized_centroid_T for p in T])
@@ -184,9 +185,9 @@ def horn_method(X, T, weights, verbose=False):
     M = np.dot(np.transpose(Xnew_weighted), Tnew_weighted)
 
     if verbose:
-        print "Xnew: \n" + str(Xnew)
-        print "Tnew: \n" + str(Tnew)
-        print "Matrix M: \n" + str(M)
+        print ("Xnew: \n" + str(Xnew))
+        print ("Tnew: \n" + str(Tnew))
+        print ("Matrix M: \n" + str(M))
 
     N = np.array([[M[0, 0] + M[1, 1] + M[2, 2], M[1, 2] - M[2, 1], M[2, 0] - M[0, 2], M[0, 1] - M[1, 0]],
                   [M[1, 2] - M[2, 1], M[0, 0] - M[1, 1] - M[2, 2], M[0, 1] + M[1, 0], M[2, 0] + M[0, 2]],
@@ -196,9 +197,9 @@ def horn_method(X, T, weights, verbose=False):
     w, v = np.linalg.eig(N)
 
     if verbose:
-        print "N: \n" + str(N)
-        print "w: \n" + str(w)
-        print "v: \n" + str(v)
+        print ("N: \n" + str(N))
+        print ("w: \n" + str(w))
+        print ("v: \n" + str(v))
 
     argMaxEigenValue = np.argmax(np.real(w))
 
@@ -209,7 +210,7 @@ def horn_method(X, T, weights, verbose=False):
     maxEigenValueVector = maxEigenValueVector * sgn
 
     if verbose:
-        print "maxEigenValueVector: \n" + str(maxEigenValueVector)
+        print ("maxEigenValueVector: \n" + str(maxEigenValueVector))
 
     q0 = maxEigenValueVector[0]
     qx = maxEigenValueVector[1]
@@ -226,8 +227,8 @@ def horn_method(X, T, weights, verbose=False):
     t = normalized_centroid_T - np.dot(R, normalized_centroid_X)
 
     if verbose:
-        print "R: " + str(R)
-        print "t: " + str(t)
+        print ("R: " + str(R))
+        print ("t: " + str(t))
 
     Xfit = np.dot(R, np.transpose(X))
     for i in xrange(Xfit.shape[1]):
@@ -242,8 +243,8 @@ def horn_method(X, T, weights, verbose=False):
     error = np.linalg.norm(weighted_err) * np.sum(weights)
 
     if verbose:
-        print "err: \n" + str(err)
-        print "weighted_err: \n" + str(weighted_err)
+        print ("err: \n" + str(err))
+        print ("weighted_err: \n" + str(weighted_err))
 
     transfX = np.array([np.dot(R, x) + t for x in X])
 

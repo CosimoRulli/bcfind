@@ -13,7 +13,11 @@ import pandas as pd
 import numpy as np
 from PIL import Image
 from PIL import ImageDraw
-import cPickle as pickle
+try :
+    import cPickle as pickle
+except:
+    import _pickle as pickle
+
 from scipy.spatial import cKDTree
 
 from bcfind import timer
@@ -409,7 +413,7 @@ class SubStack(object):
             return
         self.imgs = []
         self.pixels = []
-	if pair_id is not None:
+        if pair_id is not None:
             idir = self.indir+'/'+self.substack_id+'/'+pair_id
             files = sorted([idir+'/'+f for f in os.listdir(idir) if f[0] != '.' and valid_suffix(f)])
         elif ignore_info_files:
@@ -468,15 +472,15 @@ class SubStack(object):
 
         pass
     def get_volume(self, convert_to_gray=True, flip=False, ignore_info_files=False, h5filename=None):
-	if not hasattr(self, 'imgs'):
-	    self.load_volume(convert_to_gray, flip, ignore_info_files, h5filename)
-	Depth = self.info['Depth']
-	Width = self.info['Width']
-	Height = self.info['Height']
-	patch = np.zeros((Width,Height,Depth))
-	for z in range(Depth):
-	    patch[:, :, z] = np.array(self.imgs[z]).T
-	return patch
+        if not hasattr(self, 'imgs'):
+            self.load_volume(convert_to_gray, flip, ignore_info_files, h5filename)
+        Depth = self.info['Depth']
+        Width = self.info['Width']
+        Height = self.info['Height']
+        patch = np.zeros((Width,Height,Depth))
+        for z in range(Depth):
+            patch[:, :, z] = np.array(self.imgs[z]).T
+        return patch
 
     def neighbors_graph(self, C):
         X = np.array([[c.x, c.y, c.z] for c in C])
