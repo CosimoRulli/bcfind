@@ -5,7 +5,7 @@ import torch
 from torch.utils.data import DataLoader
 import argparse
 import utils
-from data_reader import DataReader, DataReaderWeight
+from data_reader import DataReader, DataReaderWeight, DataReader_2map
 from models.FC_teacher import FC_teacher
 from models.FC_teacher_max_p import FC_teacher_max_p
 import torch.nn as nn
@@ -48,6 +48,11 @@ def get_parser():
                         default=1.0,
                         help=""" wheight for class soma cell""")
 
+    parser.add_argument('--special_loss', dest='special_loss',
+                        action='store_true',
+                        help="""whether to use the training with
+                        a special pixel-wise loss set to true""")
+
     parser.add_argument('-b', '--batch_size', dest='batch_size', type=int,
                         default=8,
                         help="""batch size, integer number""")
@@ -89,6 +94,7 @@ def get_parser():
                         be stored""")
 
     parser.set_defaults(max_pool_version=False)
+    parser.set_defaults(special_loss=False)
     return parser
 
 
@@ -126,7 +132,8 @@ if __name__ == "__main__":
     # datestring = datetime.strftime(datetime.now(), '%Y-%m-%d-%H-%M-%S')
     name_dir = args.name_dir if args.name_dir else datestring
     model_save_path = os.path.join(args.model_save_path, name_dir)
-    os.makedirs(model_save_path)
+    if not os.path.isdir(model_save_path):
+        os.makedirs(model_save_path)
 
     complete_dataframe = pd.read_csv(args.csv_path, comment="#",
                                      index_col=0, dtype={"img_name": str})
@@ -134,16 +141,28 @@ if __name__ == "__main__":
                          take([0])).split("=")[-1])  # workaround
     # 80/20 splitting rule
     train_df, val_df = train_test_split(complete_dataframe, test_size=0.2)
+    if args.special_loss:
+        train_dataset = DataReader_2map(args.img_dir, args.gt_dir,
+                                        args.weight_dir,
+                                        args.weight_dir,
+                                        train_df, patch_size)
 
-    train_dataset = DataReaderWeight(args.img_dir, args.gt_dir,
-                                     args.weight_dir,
-                                     train_df, patch_size)
+        validation_dataset = DataReader_2map(args.img_dir, args.gt_dir,
+                                             args.weight_dir,
+                                             args.weight_dir,
+                                             val_df, patch_size)
+    else:
+        train_dataset = DataReaderWeight(args.img_dir, args.gt_dir,
+                                         args.weight_dir,
+                                         train_df, patch_size)
+
+        validation_dataset = DataReaderWeight(args.img_dir, args.gt_dir,
+                                              args.weight_dir,
+                                              val_df, patch_size)
+
     train_loader = DataLoader(train_dataset, args.batch_size,
                               shuffle=True, num_workers=args.n_workers)
 
-    validation_dataset = DataReaderWeight(args.img_dir, args.gt_dir,
-                                          args.weight_dir,
-                                          val_df, patch_size)
     validation_loader = DataLoader(validation_dataset, args.batch_size,
                                    shuffle=False, num_workers=args.n_workers)
 
@@ -204,35 +223,55 @@ if __name__ == "__main__":
                 progress_bar = enumerate(validation_loader)
 
             for idx, patches in progress_bar:
-                img_patches, gt_patches, mask = patches
+
+                if args.special_loss:
+                    img_patches, gt_patches, wmap, no_wmap = patches
+
+                    weighted_map = img_patches.clone()
+                    print args.soma_weight - 1
+                    weighted_map[wmap.byte()] = args.soma_weight
+                    weighted_map[no_wmap.byte()] = 0
+
+                    weighted_map_temp = weighted_map.clone()
+                    weighted_map += 1
+                    # #####debug#######
+                    # import tifffile
+                    # import numpy as np
+                    # import sys
+                    # for i in range(weighted_map_temp.shape[0]):
+                    #     map_save = (weighted_map_temp[i] * 255).numpy().astype(np.uint8)
+                    #     img_save = (img_patches[i].clone() * 255).numpy().astype(np.uint8)
+                    #     gt_save = (gt_patches[i].clone() * 255).numpy().astype(np.uint8)
+                    #     name = np.random.randint(1000)
+                    #     tifffile.imwrite(os.path.join(
+                    #         "/home/leonardo/Desktop/map_test_2/"+ str(name) +"_map.tiff"),
+                    #                      map_save, photometric = 'minisblack')
+
+                    #     tifffile.imwrite(os.path.join(
+                    #         "/home/leonardo/Desktop/map_test_2/"+ str(name) +"_gt.tiff"),
+                    #                      gt_save, photometric = 'minisblack')
+
+                    #     tifffile.imwrite(os.path.join(
+                    #         "/home/leonardo/Desktop/map_test_2/"+ str(name) +"_img.tiff"),
+                    #                      img_save, photometric = 'minisblack')
+                    #     print '####################'
+                    #     # print np.sum(no_wmap.numpy())
+                    #     print '####################'
+                    #sys.exit()
+
+                    # #################
+                else:
+                    img_patches, gt_patches, mask = patches
+                    weighted_map = (mask * (args.soma_weight - 1)) + 1
+
+                # continue
 
                 img_patches = img_patches.to(args.device)
                 gt_patches = gt_patches.to(args.device)
-                mask = mask.to(args.device)
-                import tifffile
-                import numpy as np
-                import sys
+                # mask = mask.to(args.device)
+                weighted_map = weighted_map.to(args.device)
+                # FIXME mettere weighted_map al posto di mask
 
-                for i in range(img_patches.shape[0]):
-                    #map_save = (weighted_map_temp[i] * 255).numpy().astype(np.uint8)
-                    img_save = (img_patches[i].clone() * 255).cpu().numpy().astype(np.uint8)
-                    gt_save = (gt_patches[i].clone() * 255).cpu().numpy().astype(np.uint8)
-                    name = np.random.randint(1000)
-                    #tifffile.imwrite(os.path.join(
-                    #    "/home/leonardo/Desktop/map_test_2/" + str(name) + "_map.tiff"),
-                    #    map_save, photometric='minisblack')
-
-                    tifffile.imwrite(os.path.join(
-                        "/home/cosimo/Desktop/map_test_2/" + str(name) + "_gt.tiff"),
-                        gt_save)
-
-                    tifffile.imwrite(os.path.join(
-                        "/home/cosimo/Desktop/map_test_2/" + str(name) + "_img.tiff"),
-                        img_save)
-                    print '####################'
-                    # print np.sum(no_wmap.numpy())
-                    print '####################'
-                continue
                 with torch.set_grad_enabled(phase == 'train'):
                     model.zero_grad()
                     model_output = model(img_patches)
@@ -249,10 +288,11 @@ if __name__ == "__main__":
                     # print model_output_flat.shape
                     # print gt_patches_flat.shape
                     # print '****************************'
-                    weighted_map = (mask * (args.soma_weight-1)) + 1
+
                     #loss.pos_weight = weighted_map.view(-1)
                     #calc_loss = loss(model_output.view(-1),
                     #                 gt_patches.view(-1))
+
                     #calc_loss  = F.binary_cross_entropy_with_logits(model_output.view(-1),
                     #                gt_patches.view(-1), pos_weight=weighted_map.view(-1))
                     calc_loss = torch.mean( weighted_map.view(-1) *

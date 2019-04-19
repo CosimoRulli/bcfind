@@ -162,14 +162,16 @@ if __name__=="__main__":
     parser.set_defaults(manifold_distance=40)
     parser.set_defaults(do_icp= True)
     args = parser.parse_args()
-    im = torch.load("/home/cosimo/Desktop/output.pth").float()
-    print(torch.max(im) )
-    centers_df = pd.read_csv("/home/cosimo/machine_learning_dataset/GT/TomoDec13/072411-GT.marker", usecols=[0, 1, 2])
-
+    im = torch.load("/home/leonardo/Desktop/output.pth").float()
+    print(torch.max(im))
+    centers_df = pd.read_csv(
+        "/home/leonardo/workspaces/bcfind/dataset/GT/TomoDec13/073608-GT.marker",
+        usecols=[0, 1, 2])
 
     if '#x' in centers_df.keys():  # fix some Vaa3d garbage
         centers_df.rename(columns={'#x': 'x'}, inplace=True)
-        #centers_df.rename(columns={'x': 'z', 'z': 'x'}, inplace=True)
+        # centers_df.rename(columns={'x': 'z', 'z': 'x'}, inplace=True)
+
     import warnings
 
     timers = [mscd.pca_analysis_timer, mscd.mean_shift_timer, mscd.ms_timer, mscd.patch_ms_timer]
@@ -180,9 +182,6 @@ if __name__=="__main__":
 
     with warnings.catch_warnings():
         warnings.simplefilter('ignore')
-        #todo rimuovere /255
-        res = evaluate_metrics(im.squeeze(), torch.Tensor(centers_df.values).squeeze(), args)
-        print (type(res [0]))
 
-    for t in timers:
-        tee.log(t)
+        print(evaluate_metrics(im.squeeze(), torch.Tensor(centers_df.values).squeeze(), args))
+

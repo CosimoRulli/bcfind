@@ -293,6 +293,7 @@ def _patch_ms(patch, args):
     above = local_mass > min_mass
     himaxima = np.logical_and(reg_maxima,above)
 
+
     if np.sum(himaxima) > args.max_expected_cells:
         tee.log('Too many candidates,', np.sum(himaxima), 'I believe this substack is messy and give up')
         return None
