@@ -6,14 +6,15 @@ from __future__ import absolute_import
 import torch
 import os
 import argparse
-
+from bcfind.log import tee
 #import utils
 import numpy as np
 
 #from data_reader import DataReader
 
 # from models.FC_teacher import FC_teacher
-from models.FC_teacher_max_p import FC_teacher_max_p
+from models import  FC_teacher_max_p
+
 import tifffile
 import torch.nn as nn
 import torch.optim as optim
@@ -29,11 +30,11 @@ if __name__ == "__main__":
     print(torch.max(img))
     img = img.float()/255
     print(torch.max(img))
-
+    timers = [FC_teacher_max_p.forward_time_teacher]
     # model_path = "/home/cosimo/0_teacher"
     model_path = "/home/cosimo/Università/Machine Learning/models/weight1.5_f8/0_teacher"
 
-    model = FC_teacher_max_p(8, k_conv=7).to('cuda:0')
+    model = FC_teacher_max_p.FC_teacher_max_p(8, k_conv=7).to('cuda:0')
     model.load_state_dict(torch.load(model_path, map_location='cuda:0'))
     model = model.to('cuda:0')
 
@@ -58,3 +59,5 @@ if __name__ == "__main__":
     print(np.max(output_num))
 
     tifffile.imwrite("/home/cosimo/Desktop/output.tif", output_num, photometric='minisblack')
+    for t in timers:
+        tee.log(t)

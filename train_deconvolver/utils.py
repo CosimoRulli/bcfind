@@ -8,6 +8,8 @@ import pandas as pd
 from bcfind.volume import *
 import numpy as np
 import argparse
+from train_deconvolver.models import FC_teacher_max_p
+
 
 def weights_init(m):
     classname = m.__class__.__name__
@@ -61,7 +63,7 @@ def evaluate_metrics(pred_tensor, gt_dataframe, args):
         C_pred= res[0]
         pred_seed = res[1]
         C_true = convert_df_to_centers(gt_dataframe)
-        print("################################à")
+        print("################################")
         print(type(C_true[0]))
 
         if args.manifold_distance:
@@ -163,12 +165,24 @@ if __name__=="__main__":
     im = torch.load("/home/cosimo/Desktop/output.pth").float()
     print(torch.max(im) )
     centers_df = pd.read_csv("/home/cosimo/machine_learning_dataset/GT/TomoDec13/072411-GT.marker", usecols=[0, 1, 2])
+
+
     if '#x' in centers_df.keys():  # fix some Vaa3d garbage
         centers_df.rename(columns={'#x': 'x'}, inplace=True)
         #centers_df.rename(columns={'x': 'z', 'z': 'x'}, inplace=True)
     import warnings
+
+    timers = [mscd.pca_analysis_timer, mscd.mean_shift_timer, mscd.ms_timer, mscd.patch_ms_timer]
+    timers.extend([FC_teacher_max_p.forward_time_teacher])
+    for t in timers:
+        t.reset()
+
+
     with warnings.catch_warnings():
         warnings.simplefilter('ignore')
         #todo rimuovere /255
         res = evaluate_metrics(im.squeeze(), torch.Tensor(centers_df.values).squeeze(), args)
         print (type(res [0]))
+
+    for t in timers:
+        tee.log(t)

@@ -7,7 +7,7 @@ import argparse
 import utils
 from data_reader import DataReaderSubstackTest
 from models.FC_teacher import FC_teacher
-from models.FC_teacher_max_p import FC_teacher_max_p
+from models import FC_teacher_max_p
 import torch.nn as nn
 import torch.optim as optim
 from tqdm import tqdm
@@ -21,6 +21,7 @@ import sys
 import numpy as np
 import warnings
 
+from bcfind.log import tee
 
 
 
@@ -130,7 +131,7 @@ if __name__ =="__main__":
 
     test_loader = DataLoader(test_dataset, 1,shuffle=False, num_workers=args.n_workers)
 
-    model = FC_teacher_max_p(args.initial_filters, k_conv = args.kernel_size).to(args.device)
+    model = FC_teacher_max_p.FC_teacher_max_p(args.initial_filters, k_conv = args.kernel_size).to(args.device)
 
     model.load_state_dict(torch.load(args.model_path, map_location=args.device ))
 
@@ -146,6 +147,8 @@ if __name__ =="__main__":
     total_iterations = len(test_dataset)
 
     progress_bar = enumerate(test_loader)
+
+    timers = [FC_teacher_max_p.forward_time_teacher]
 
     for idx, batch  in progress_bar:
         img, gt, centers_df, img_name   = batch
@@ -195,4 +198,7 @@ if __name__ =="__main__":
     df = pd.DataFrame(dict, columns=['img_name','precision', 'recall', 'F1' ])
 
     df.to_csv(save_path)
+
+    for t in timers:
+        tee.log(t)
 

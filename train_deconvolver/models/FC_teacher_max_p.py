@@ -2,6 +2,14 @@ from torchsummary import summary
 import torch.nn as nn
 
 
+from bcfind import timer
+
+forward_time_teacher = timer.Timer('Forward Time Teacher')
+
+
+
+
+
 class FC_teacher_max_p(nn.Module):
 
     def __init__(self, n_filters, k_conv=3, k_t_conv = 2, input_channels=1):
@@ -35,7 +43,7 @@ class FC_teacher_max_p(nn.Module):
 
         self.relu = nn.ReLU(True)
         self.sigmoid = nn.Sigmoid()
-
+    @forward_time_teacher.timed
     def forward(self, input):
 
         input = input.unsqueeze(1)
