@@ -96,6 +96,47 @@ class DataReaderSubstack(Dataset):
         #centers = [Center(row['x'], row['y'], row['z']) for _, row in ]
         return image / 255, gt / 255, weighted_map, torch.Tensor(centers_df.values)
 
+class DataReaderValidation_2map(Dataset):
+    def __init__(self, img_dir, gt_dir, centers_dir,
+                 weight_dir,fixed_weight_dir, df, transform=None):
+        super(DataReaderValidation_2map, self).__init__()
+        self.img_dir = img_dir
+        self.gt_dir = gt_dir
+        self.centers_dir = centers_dir
+        self.weight_dir = weight_dir
+        self.fixed_weight_dir  = fixed_weight_dir
+
+        self.substack_df = df
+        self.transforms = transform
+
+    def __len__(self):
+        return self.substack_df.shape[0]
+
+    def __getitem__(self, idx):
+        img_name = self.substack_df.iloc[idx]['name']
+        #print img_name
+        # img_name = str(img_name)
+        img_path = os.path.join(self.img_dir, img_name) + ".pth"
+        # img_path = os.path.join(self.img_dir, img_name) + "-GT.pth"
+        gt_path = os.path.join(self.gt_dir, img_name) + "-GT.pth"
+        centers_path = os.path.join(self.centers_dir, img_name) + "-GT.marker"
+        weight_path = (os.path.join(self.weight_dir, img_name)
+                       + "_weighted_map.pth")
+        fixed_weight_path = (os.path.join(self.fixed_weight_dir, img_name)
+                       + "_no_weighted_map.pth")
+        # print img_path
+        image = torch.load(img_path).float()
+        gt = torch.load(gt_path).float()
+        weighted_map = torch.load(weight_path).float()
+        fixed_weighted_map = torch.load(fixed_weight_path).float()
+        centers_df = pd.read_csv(centers_path, usecols=[0, 1, 2])
+        if '#x' in centers_df.keys():  # fix some Vaa3d garbage
+            centers_df.rename(columns={'#x': 'x'}, inplace=True)
+
+        #centers = [Center(row['x'], row['y'], row['z']) for _, row in ]
+        return image / 255, gt / 255, weighted_map, fixed_weighted_map, torch.Tensor(centers_df.values)
+
+
 
 class DataReader_2map(Dataset):
     """Documentation for DataReader
