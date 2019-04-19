@@ -5,7 +5,7 @@ import torch
 from torch.utils.data import DataLoader
 import argparse
 import utils
-from data_reader import DataReader, DataReaderWeight, DataReader_2map
+from data_reader import DataReader, DataReaderWeight, DataReader_2map, DataReaderSubstack, DataReaderValidation_2map
 from models.FC_teacher import FC_teacher
 from models.FC_teacher_max_p import FC_teacher_max_p
 import torch.nn as nn
@@ -16,14 +16,20 @@ from sklearn.model_selection import train_test_split
 from tensorboardX import SummaryWriter
 from datetime import datetime
 import torch.nn.functional as F
+from utils import *
+import sys
+import warnings
 
 
 def get_parser():
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.
                                      ArgumentDefaultsHelpFormatter)
-    parser.add_argument('csv_path', metavar='csv_path', type=str,
-                        help="""path for csv patches file""")
+    parser.add_argument('train_csv_path', metavar='train_csv_path', type=str,
+                        help="""path to csv patches """)
+
+    parser.add_argument('val_test_csv_path', metavar='val_test_csv_path', type=str,
+                        help="""path to val/train csv""")
 
     parser.add_argument('img_dir', metavar='img_dir', type=str,
                         help="""Directory contaning the collection
@@ -36,6 +42,10 @@ def get_parser():
     parser.add_argument('weight_dir', metavar='weight_dir', type=str,
                         help="""Directory contaning the collection
                         of weighted_map""")
+
+    parser.add_argument('marker_dir', metavar='marker_dir', type=str,
+                        help="""Directory contaning the collection
+                            of gt markers""")
 
     parser.add_argument('model_save_path', metavar='model_save_path', type=str,
                         help="""directory where the models will be saved""")
@@ -70,11 +80,6 @@ def get_parser():
                         help="""size of the cubic kernel, provide only an integer e.
                         g. kernel_size 3""")
 
-    parser.add_argument('--max_pool_version', dest='max_pool_version',
-                        action='store_true',
-                        help="""whether to use the teacher with
-                        maxpooling layers set to true""")
-
     parser.add_argument('-f', '--initial_filters', dest='initial_filters',
                         type=int,
                         default=4,
@@ -93,16 +98,39 @@ def get_parser():
                         help="""name of the directory where  model will
                         be stored""")
 
-    parser.set_defaults(max_pool_version=False)
     parser.set_defaults(special_loss=False)
     return parser
+
+
+def additional_namespace_arguments(parser):
+
+    parser.set_defaults(hi_local_max_radius=6)
+    parser.set_defaults(min_second_threshold=15)
+    parser.set_defaults(mean_shift_bandwidth=5.5)
+    parser.set_defaults(seeds_filtering_mode='soft')
+    parser.set_defaults(max_expected_cells=10000)
+    parser.set_defaults(max_cell_diameter=16.0)
+    parser.set_defaults(verbose=False)
+    parser.set_defaults(save_image=False)
+    parser.set_defaults(evaluation=True)
+    parser.set_defaults(do_icp=True)
+    parser.set_defaults(manifold_distance=40)
+
+
+def blockPrint():
+    sys.stdout = open(os.devnull, 'w')
+
+
+# Restore
+def enablePrint():
+    sys.stdout = sys.__stdout__
 
 
 def criterium_to_save():
     return True
 
 
-def print_and_save_losses(losses, writer, epoch):
+def print_and_save_losses(losses, metrics, writer, epoch):
     for phase in ['train', 'validation']:
         losses[phase] = torch.tensor(losses[phase]).mean().item()
         print '{} loss: {:.3f} '.format(phase, losses[phase])
@@ -112,13 +140,23 @@ def print_and_save_losses(losses, writer, epoch):
             global_step=epoch
         )
 
+    for key in metrics.keys():
+        metrics[key] = torch.tensor(metrics[key]).float().mean().item()
+        print 'Validation {} : {:.3f} '.format(key, metrics[key])
+        writer.add_scalars(
+            'metrics',
+            {key: metrics[key]},
+            global_step = epoch
+        )
+
 
 if __name__ == "__main__":
     parser = get_parser()
+    additional_namespace_arguments(parser)
     args = parser.parse_args()
 
     torch.manual_seed(9999)
-
+    sigmoid = nn.Sigmoid()
     # tensorboard configuration
     default_log_dir = "/home/rulli_scommegna/tensorboard_log"
     datestring = datetime.strftime(datetime.now(), '%Y-%m-%d-%H-%M-%S')
@@ -135,51 +173,48 @@ if __name__ == "__main__":
     if not os.path.isdir(model_save_path):
         os.makedirs(model_save_path)
 
-    complete_dataframe = pd.read_csv(args.csv_path, comment="#",
-                                     index_col=0, dtype={"img_name": str})
-    patch_size = int(str(pd.read_csv(args.csv_path, nrows=1, header=None).
+    train_df = pd.read_csv(args.train_csv_path, comment="#",
+                                  index_col=0, dtype={"img_name": str})
+    patch_size = int(str(pd.read_csv(args.train_csv_path, nrows=1, header=None).
                          take([0])).split("=")[-1])  # workaround
-    # 80/20 splitting rule
-    train_df, val_df = train_test_split(complete_dataframe, test_size=0.2)
+    print 'patch_size' + str(patch_size)
+    val_test_dataframe = pd.read_csv(args.val_test_csv_path, comment="#",
+                                  index_col=0, dtype={"name": str})
+    val_df = val_test_dataframe[(val_test_dataframe['split'] == 'VAL')]
+
     if args.special_loss:
         train_dataset = DataReader_2map(args.img_dir, args.gt_dir,
                                         args.weight_dir,
                                         args.weight_dir,
                                         train_df, patch_size)
 
-        validation_dataset = DataReader_2map(args.img_dir, args.gt_dir,
-                                             args.weight_dir,
-                                             args.weight_dir,
-                                             val_df, patch_size)
+        validation_dataset = DataReaderValidation_2map(args.img_dir,
+                                                       args.gt_dir,
+                                                       args.centers_dir,
+                                                       args.weight_dir,
+                                                       args.weight_dir,
+                                                       val_df)
     else:
         train_dataset = DataReaderWeight(args.img_dir, args.gt_dir,
                                          args.weight_dir,
                                          train_df, patch_size)
 
-        validation_dataset = DataReaderWeight(args.img_dir, args.gt_dir,
-                                              args.weight_dir,
-                                              val_df, patch_size)
+        validation_dataset = DataReaderSubstack(args.img_dir,
+                                                args.gt_dir,
+                                                args.centers_dir,
+                                                args.weight_dir,
+                                                val_df)
 
     train_loader = DataLoader(train_dataset, args.batch_size,
                               shuffle=True, num_workers=args.n_workers)
 
-    validation_loader = DataLoader(validation_dataset, args.batch_size,
+    validation_loader = DataLoader(validation_dataset, 1,
                                    shuffle=False, num_workers=args.n_workers)
 
     # input_size = (args.patch_size, args.patch_size, args.patch_size)
 
-    if args.max_pool_version:
-        print 'sono max'
-        print args.max_pool_version
-        model = FC_teacher_max_p(n_filters=args.initial_filters,
-                                 k_conv=args.kernel_size).to(args.device)
-    else:
-        print 'sono normale'
-        print args.max_pool_version
-
-        model = FC_teacher(k=args.kernel_size,
-                           n_filters=args.initial_filters).to(args.device)
-
+    model = FC_teacher_max_p(n_filters=args.initial_filters,
+                             k_conv=args.kernel_size).to(args.device)
     model.apply(utils.weights_init)
     # loss = nn.CrossEntropyLoss()
     # loss = nn.BCELoss()
@@ -196,118 +231,133 @@ if __name__ == "__main__":
     losses['train'] = []
     losses['validation'] = []
 
+    metrics = {}
+
+    best_f1 = -1
+    best_epoch = 0
+
     for epoch in range(args.epochs):
         print("epoch [{}/{}]".format(epoch, args.epochs))
+####################
+        print 'Train Phase'
 
-        for phase in ['train', 'validation']:
+        model.train()
+        losses['train'] = []
 
-            print("Phase: {}".format(phase))
+        dataset  = train_dataset
+        total_iterations = len(dataset) // args.batch_size + 1
 
-            if phase == 'train':
-                model.train()
+        progress_bar = tqdm(enumerate(train_loader),
+                            total=total_iterations)
+        for idx, patches in progress_bar:
+
+            if args.special_loss:
+                img_patches, gt_patches, wmap, no_wmap = patches
+
+                weighted_map = img_patches.clone()
+
+                weighted_map[wmap.byte()] = args.soma_weight
+                weighted_map[no_wmap.byte()] = 0
+
+                weighted_map_temp = weighted_map.clone()
+                weighted_map += 1
+
             else:
-                model.eval()
+                img_patches, gt_patches, mask = patches
+                weighted_map = (mask * (args.soma_weight - 1)) + 1
 
-            losses[phase] = []
+            img_patches = img_patches.to(args.device)
+            gt_patches = gt_patches.to(args.device)
+            weighted_map = weighted_map.to(args.device)
 
-            dataset = train_dataset if phase == 'train' else validation_dataset
+            with torch.set_grad_enabled(True):
+                model.zero_grad()
 
-            total_iterations = len(dataset) // args.batch_size + 1
+                model_output = model(img_patches)
+                calc_loss = torch.mean( weighted_map.view(-1) *
+                                        F.binary_cross_entropy_with_logits(
+                                            model_output.view(-1),
+                                            gt_patches.view(-1), reduce='none'))
 
-            # progress_bar = enumerate(total=total_iterations)
+                # calc_loss = F.binary_cross_entropy_with_logits(model_output.view(-1),
+                #                                                gt_patches.view(-1),
+                #                                                pos_weight=weighted_map.view(-1))
 
-            if phase == 'train':
-                progress_bar = tqdm(enumerate(train_loader),
-                                    total=total_iterations)
+                losses['train'].append(calc_loss)
+
+                calc_loss.backward()
+                optimizer.step()
+
+        print '\nValidation Phase'
+        model.eval()
+        losses['validation'] = []
+        dataset = validation_dataset
+
+        total_iterations = len(dataset) // args.batch_size + 1
+
+        # progress_bar = enumerate(validation_loader)
+
+        for idx, batch in enumerate(validation_loader):
+            # img, gt, mask, centers_df = patches
+
+            if args.special_loss:
+                img, gt, mask, no_weight_mask, centers_df = batch
+
+                weighted_map = img_patches.clone()
+                
+                weighted_map[wmap.byte()] = args.soma_weight
+                weighted_map[no_wmap.byte()] = 0
+
+                weighted_map_temp = weighted_map.clone()
+                weighted_map += 1
             else:
-                progress_bar = enumerate(validation_loader)
+                img, gt, mask, centers_df = batch
+                weighted_map = (mask * (args.soma_weight - 1)) + 1
 
-            for idx, patches in progress_bar:
+            img = img.to(args.device)
+            gt = gt.to(args.device)
+            weighted_map = weighted_map.to(args.device)
 
-                if args.special_loss:
-                    img_patches, gt_patches, wmap, no_wmap = patches
+            '''Validation Loss'''
+            with torch.set_grad_enabled(False):
+                #model.zero_grad()
+                model_output = model(adapt_dimension(img))
 
-                    weighted_map = img_patches.clone()
-                    print args.soma_weight - 1
-                    weighted_map[wmap.byte()] = args.soma_weight
-                    weighted_map[no_wmap.byte()] = 0
+                gt_ad = adapt_dimension(gt)
+                flat_gt = gt_ad.contiguous().view(-1)
+                calc_loss = torch.mean(weighted_map.view(-1) *
+                                        F.binary_cross_entropy_with_logits(
+                                            model_output.view(-1),
+                                            gt_patches.view(-1), reduce='none'))
 
-                    weighted_map_temp = weighted_map.clone()
-                    weighted_map += 1
-                    # #####debug#######
-                    # import tifffile
-                    # import numpy as np
-                    # import sys
-                    # for i in range(weighted_map_temp.shape[0]):
-                    #     map_save = (weighted_map_temp[i] * 255).numpy().astype(np.uint8)
-                    #     img_save = (img_patches[i].clone() * 255).numpy().astype(np.uint8)
-                    #     gt_save = (gt_patches[i].clone() * 255).numpy().astype(np.uint8)
-                    #     name = np.random.randint(1000)
-                    #     tifffile.imwrite(os.path.join(
-                    #         "/home/leonardo/Desktop/map_test_2/"+ str(name) +"_map.tiff"),
-                    #                      map_save, photometric = 'minisblack')
+                # calc_loss = F.binary_cross_entropy_with_logits(model_output.view(-1),
+                #                                                flat_gt,
+                #                                                pos_weight=adapt_dimension(weighted_map).contiguous().view(-1))
 
-                    #     tifffile.imwrite(os.path.join(
-                    #         "/home/leonardo/Desktop/map_test_2/"+ str(name) +"_gt.tiff"),
-                    #                      gt_save, photometric = 'minisblack')
+                losses['validation'].append(calc_loss)
 
-                    #     tifffile.imwrite(os.path.join(
-                    #         "/home/leonardo/Desktop/map_test_2/"+ str(name) +"_img.tiff"),
-                    #                      img_save, photometric = 'minisblack')
-                    #     print '####################'
-                    #     # print np.sum(no_wmap.numpy())
-                    #     print '####################'
-                    #sys.exit()
+                #print 'Computing accuracy'
+                blockPrint()
+                #ricalcolo senza adattare le dimensioni
+                model_output = model(img)
 
-                    # #################
-                else:
-                    img_patches, gt_patches, mask = patches
-                    weighted_map = (mask * (args.soma_weight - 1)) + 1
+                with warnings.catch_warnings():
+                    warnings.simplefilter('ignore')
+                    print torch.max(sigmoid(model_output))
+                    precision, recall, F1, TP_inside, FP_inside, FN_inside = evaluate_metrics(sigmoid(model_output).squeeze(), centers_df.squeeze(), args)
+                enablePrint()
 
-                # continue
+                metrics['precision'] = precision
+                metrics['recall'] = recall
+                metrics['F1'] = F1
 
-                img_patches = img_patches.to(args.device)
-                gt_patches = gt_patches.to(args.device)
-                # mask = mask.to(args.device)
-                weighted_map = weighted_map.to(args.device)
-                # FIXME mettere weighted_map al posto di mask
-
-                with torch.set_grad_enabled(phase == 'train'):
-                    model.zero_grad()
-                    model_output = model(img_patches)
-
-                    # print '****************************'
-                    # print model_output.shape
-                    # print gt_patches.shape
-                    # print '****************************'
-
-                    # model_output_flat = model_output.view(-1)
-                    # gt_patches_flat = gt_patches.view(-1)
-
-                    # print '****************************'
-                    # print model_output_flat.shape
-                    # print gt_patches_flat.shape
-                    # print '****************************'
-
-                    #loss.pos_weight = weighted_map.view(-1)
-                    #calc_loss = loss(model_output.view(-1),
-                    #                 gt_patches.view(-1))
-
-                    #calc_loss  = F.binary_cross_entropy_with_logits(model_output.view(-1),
-                    #                gt_patches.view(-1), pos_weight=weighted_map.view(-1))
-                    calc_loss = torch.mean( weighted_map.view(-1) *
-                                            F.binary_cross_entropy_with_logits(
-                                                model_output.view(-1),
-                                                gt_patches.view(-1), reduce='none'))
-                    # TODO: aggiungere i pesi
-                    # calc_loss = F.binary_cross_entropy_with_logits(model_output,
-                    #                                               gt_patches)
-
-                    # print calc_loss
-                    losses[phase].append(calc_loss)
-                    if phase == 'train':
-                        calc_loss.backward()
-                        optimizer.step()
+                if F1 > best_f1:
+                    best_f1  = F1
+                    best_epoch = epoch
+                    file_name = os.path.join(args.model_save_path, args.name_dir,  "best.txt")
+                    with open(file_name, "w") as f:
+                        f.write("best epoch: "+str(epoch)+"\n")
+                        f.write("F1: "+str(F1))
 
         # after each epoch we print and save in tensorboard the losses
         print_and_save_losses(losses, writer, epoch)
