@@ -5,9 +5,10 @@ import torch
 from torch.utils.data import DataLoader
 import argparse
 import utils
+from models.FC_teacher_max_p import FC_teacher_max_p
 from data_reader import DataReader, DataReaderWeight, DataReader_2map, DataReaderSubstack, DataReaderValidation_2map
 from models.FC_teacher import FC_teacher
-from models.FC_teacher_max_p import FC_teacher_max_p
+
 import torch.nn as nn
 import torch.optim as optim
 from tqdm import tqdm
@@ -328,7 +329,7 @@ if __name__ == "__main__":
                 calc_loss = torch.mean(weighted_map.view(-1) *
                                         F.binary_cross_entropy_with_logits(
                                             model_output.view(-1),
-                                            gt_patches.view(-1), reduce='none'))
+                                            gt_ad.view(-1), reduce='none'))
 
                 # calc_loss = F.binary_cross_entropy_with_logits(model_output.view(-1),
                 #                                                flat_gt,
