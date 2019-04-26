@@ -5,7 +5,9 @@ import torch
 from torch.utils.data import DataLoader
 import argparse
 import utils
-from models.FC_teacher_max_p import FC_teacher_max_p
+from models import FC_teacher_max_p
+
+#from models.FC_teacher_max_p import FC_teacher_max_p
 from data_reader import DataReader, DataReaderWeight, DataReader_2map, DataReaderSubstack, DataReaderValidation_2map
 from models.FC_teacher import FC_teacher
 
@@ -214,7 +216,7 @@ if __name__ == "__main__":
 
     # input_size = (args.patch_size, args.patch_size, args.patch_size)
 
-    model = FC_teacher_max_p(n_filters=args.initial_filters,
+    model = FC_teacher_max_p.FC_teacher_max_p(n_filters=args.initial_filters,
                              k_conv=args.kernel_size).to(args.device)
     model.apply(utils.weights_init)
     # loss = nn.CrossEntropyLoss()
