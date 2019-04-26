@@ -43,7 +43,7 @@ def get_parser():
                         help="""Directory contaning the collection
                         of weighted_map""")
 
-    parser.add_argument('marker_dir', metavar='marker_dir', type=str,
+    parser.add_argument('centers_dir', metavar='centers_dir', type=str,
                         help="""Directory contaning the collection
                             of gt markers""")
 
