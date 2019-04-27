@@ -24,11 +24,13 @@ class FC_student(nn.Module):
         '''
 
         # Deconvoluzioni con filtri 2x2x2 e stride 2 raddoppiano le dimensioni
+        '''
         self.conv_t1 = nn.ConvTranspose3d(4 * n_filters, 2*n_filters,
                                           self.k_t_conv, stride=2)
         self.conv_t2 = nn.ConvTranspose3d(2*n_filters,
                                           n_filters, self.k_t_conv, stride=2)
-
+        '''
+        self.conv_t = nn.ConvTranspose3d(2*n_filters, n_filters, self.k_t_conv, stride=2)
         # 1x1x1 conv https://stats.stackexchange.com/questions/194142/what-does-1x1-convolution-mean-in-a-neural-network
         self.conv1x1x1 = nn.Conv3d(self.n_filters, input_channels, 1)
 
@@ -58,7 +60,7 @@ class FC_student(nn.Module):
         
         #output = self.relu(output)
         '''
-        output = self.conv_t2(output)
+        output = self.conv_t(output)
         output = self.relu(output)
 
         output = self.conv1x1x1(output)
@@ -70,3 +72,7 @@ if __name__=="__main__":
 
     teacher = FC_student(4, k_conv=7, k_t_conv=2).to('cuda:0')
     summary(teacher, input_size=(64,64,64))
+    for i, p in enumerate(teacher.parameters()):
+        print(i, p.shape)
+        print (teacher._modules.keys()[i//2])
+        print(p.grad)

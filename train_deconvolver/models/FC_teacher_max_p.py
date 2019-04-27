@@ -66,11 +66,14 @@ class FC_teacher_max_p(nn.Module):
         output = self.relu(output)
 
         output = self.conv1x1x1(output)
-        output = self.sigmoid(output)
+        #output = self.sigmoid(output)
 
         return output.squeeze(1)
 
 if __name__=="__main__":
 
-    teacher = FC_teacher_max_p(4, k_conv=7, k_t_conv=2).to('cuda:0')
-    summary(teacher, input_size=(280,244,280))
+    teacher = FC_teacher_max_p(8, k_conv=7, k_t_conv=2).to('cuda:0')
+    summary(teacher, input_size=(64,64,64))
+    for i, p in enumerate(teacher.parameters()):
+        print(i, p.shape)
+        print (teacher._modules.keys()[i//2])

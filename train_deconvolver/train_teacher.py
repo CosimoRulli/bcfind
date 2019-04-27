@@ -331,7 +331,7 @@ if __name__ == "__main__":
                 calc_loss = torch.mean(weighted_map.view(-1) *
                                         F.binary_cross_entropy_with_logits(
                                             model_output.view(-1),
-                                            gt_ad.view(-1), reduce='none'))
+                                            flat_gt, reduce='none'))
 
                 # calc_loss = F.binary_cross_entropy_with_logits(model_output.view(-1),
                 #                                                flat_gt,
@@ -363,7 +363,7 @@ if __name__ == "__main__":
                         f.write("F1: "+str(F1))
 
         # after each epoch we print and save in tensorboard the losses
-        print_and_save_losses(losses, writer, epoch)
+        print_and_save_losses(losses, metrics, writer, epoch)
 
         # sometimes we save the model
         if criterium_to_save():

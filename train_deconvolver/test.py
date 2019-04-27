@@ -26,8 +26,8 @@ import matplotlib
 import matplotlib.pyplot as plt
 
 if __name__ == "__main__":
-    # img_path  = "/home/cosimo/machine_learning_dataset/3DImages/052204.pth"
-    img_path = "/home/leonardo/workspaces/bcfind/dataset/3d_img/073608.pth"
+    img_path  = "/home/cosimo/machine_learning_dataset/3d_images_flip_false/052204.pth"
+    #img_path = "/home/leonardo/workspaces/bcfind/dataset/3d_img/073608.pth"
     img = torch.load(img_path)
     print(torch.max(img))
     img = img.float()/255
@@ -36,8 +36,8 @@ if __name__ == "__main__":
     sigmoid = nn.Sigmoid()
 
     # model_path = "/home/cosimo/0_teacher"
-    model_path = "/home/leonardo/workspaces/bcfind/dataset/models/special_loss/38_teacher"
-    model = FC_teacher_max_p(8, k_conv=7).to('cuda:0')
+    model_path = "/home/cosimo/Università/Machine Learning/models/teacher_1/16_teacher"
+    model = FC_teacher_max_p.FC_teacher_max_p(8, k_conv=7).to('cuda:0')
 
     model.load_state_dict(torch.load(model_path, map_location='cuda:0'))
     model = model.to('cuda:0')
@@ -51,7 +51,7 @@ if __name__ == "__main__":
     #print(output)
     torch.save(output, "/home/cosimo/Desktop/output.pth")
     print(torch.max(output))
-    torch.save(output, "/home/leonardo/Desktop/output.pth")
+    #torch.save(output, "/home/leonardo/Desktop/output.pth")
     output*=255
     output_num = output.cpu().numpy()
     output_num = output_num.astype(np.uint8)
@@ -64,5 +64,5 @@ if __name__ == "__main__":
     print(np.max(output_num))
 
     tifffile.imwrite("/home/cosimo/Desktop/output.tif", output_num, photometric='minisblack')
-    for t in timers:
-        tee.log(t)
+    #for t in timers:
+    #    tee.log(t)
