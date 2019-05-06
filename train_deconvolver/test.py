@@ -16,6 +16,8 @@ import numpy as np
 
 # from models.FC_teacher import FC_teacher
 from models import  FC_teacher_max_p
+from models import FC_student
+
 
 import tifffile
 import torch.nn as nn
@@ -36,9 +38,9 @@ if __name__ == "__main__":
     sigmoid = nn.Sigmoid()
 
     # model_path = "/home/cosimo/0_teacher"
-    model_path = "/home/cosimo/Università/Machine Learning/models/teacher_1/16_teacher"
+    model_path = "/home/cosimo/only_quantization4bit_10"
     model = FC_teacher_max_p.FC_teacher_max_p(8, k_conv=7).to('cuda:0')
-
+    #model = FC_student.FC_student(4, k_conv = 7).to('cuda:0')
     model.load_state_dict(torch.load(model_path, map_location='cuda:0'))
     model = model.to('cuda:0')
 
