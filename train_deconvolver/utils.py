@@ -162,10 +162,10 @@ if __name__=="__main__":
     parser.set_defaults(manifold_distance=40)
     parser.set_defaults(do_icp= True)
     args = parser.parse_args()
-    im = torch.load("/home/leonardo/Desktop/output.pth").float()
+    im = torch.load("/home/cosimo/Desktop/output.pth").float()
     print(torch.max(im))
     centers_df = pd.read_csv(
-        "/home/leonardo/workspaces/bcfind/dataset/GT/TomoDec13/073608-GT.marker",
+        "/home/cosimo/machine_learning_dataset/GT/TomoDec13/052204-GT.marker",
         usecols=[0, 1, 2])
 
     if '#x' in centers_df.keys():  # fix some Vaa3d garbage

@@ -37,7 +37,7 @@ class FC_deeper_teacher(nn.Module):
         # Deconvoluzioni con filtri 2x2x2 e stride 2 raddoppiano le dimensioni
 
         self.conv_t1 = nn.ConvTranspose3d(8 * n_filters, 4*n_filters,
-                                          self.k_t_conv, stride=2)
+                                          3, padding=1)
         self.conv_t2 = nn.ConvTranspose3d(4 * n_filters, 2*n_filters,
                                           self.k_t_conv, stride=2)
         self.conv_t3 = nn.ConvTranspose3d(2*n_filters,
@@ -49,7 +49,7 @@ class FC_deeper_teacher(nn.Module):
         self.conv1x1x1 = nn.Conv3d(self.n_filters, input_channels, 1)
 
         self.max_pool = nn.MaxPool3d(2)
-
+        self.max_pool_pad = nn.MaxPool3d(2, padding=1)
         self.relu = nn.ReLU(True)
         self.sigmoid = nn.Sigmoid()
     @forward_time_teacher.timed
@@ -67,7 +67,7 @@ class FC_deeper_teacher(nn.Module):
 
         output = self.conv3(output)
         output = self.relu(output)
-        output = self.max_pool(output)
+        #output = self.max_pool(output)
 
         output = self.conv4(output)
         output = self.relu(output)
@@ -87,6 +87,6 @@ class FC_deeper_teacher(nn.Module):
 
 if __name__=="__main__":
 
-    teacher = FC_deeper_teacher(8, k_conv=7, k_t_conv=2).to('cuda:0')
+    teacher = FC_deeper_teacher(4, k_conv=7, k_t_conv=2).to('cuda:0')
     summary(teacher, input_size=(64,64,64))
 
