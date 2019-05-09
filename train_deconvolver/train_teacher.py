@@ -5,9 +5,13 @@ import torch
 from torch.utils.data import DataLoader
 import argparse
 import utils
+from models import FC_teacher_max_p
+from models import FC_student
+from models import FC_deeper_teacher
+#from models.FC_teacher_max_p import FC_teacher_max_p
 from data_reader import DataReader, DataReaderWeight, DataReader_2map, DataReaderSubstack, DataReaderValidation_2map
 from models.FC_teacher import FC_teacher
-from models.FC_teacher_max_p import FC_teacher_max_p
+
 import torch.nn as nn
 import torch.optim as optim
 from tqdm import tqdm
@@ -43,7 +47,7 @@ def get_parser():
                         help="""Directory contaning the collection
                         of weighted_map""")
 
-    parser.add_argument('marker_dir', metavar='marker_dir', type=str,
+    parser.add_argument('centers_dir', metavar='centers_dir', type=str,
                         help="""Directory contaning the collection
                             of gt markers""")
 
@@ -54,6 +58,10 @@ def get_parser():
                         help="""device to use during training
                         and validation phase, e.g. cuda:0""")
 
+    parser.add_argument('-a', '--arch', metavar='ARCH', default='teacher',
+                        choices="teacher, student",
+                        help='Choose between teacher and student architectures')
+
     parser.add_argument('-w', '--weight', dest='soma_weight', type=float,
                         default=1.0,
                         help=""" wheight for class soma cell""")
@@ -62,6 +70,7 @@ def get_parser():
                         action='store_true',
                         help="""whether to use the training with
                         a special pixel-wise loss set to true""")
+
 
     parser.add_argument('-b', '--batch_size', dest='batch_size', type=int,
                         default=8,
@@ -213,8 +222,13 @@ if __name__ == "__main__":
 
     # input_size = (args.patch_size, args.patch_size, args.patch_size)
 
-    model = FC_teacher_max_p(n_filters=args.initial_filters,
-                             k_conv=args.kernel_size).to(args.device)
+    if args.arch == "teacher":
+        #model = FC_teacher_max_p.FC_teacher_max_p(n_filters=args.initial_filters, k_conv=args.kernel_size).to(args.device)
+        model = FC_deeper_teacher.FC_deeper_teacher(n_filters = args.initial_filters, k_conv=args.kernel_size).to(args.device)
+    elif args.arch == "student":
+        model = FC_student.FC_student(n_filters=args.initial_filters, k_conv=args.kernel_size).to(args.device)
+    else:
+        raise ValueError("Unrecognized architecture")
     model.apply(utils.weights_init)
     # loss = nn.CrossEntropyLoss()
     # loss = nn.BCELoss()
@@ -231,7 +245,7 @@ if __name__ == "__main__":
     losses['train'] = []
     losses['validation'] = []
 
-    metrics = {}
+
 
     best_f1 = -1
     best_epoch = 0
@@ -288,6 +302,10 @@ if __name__ == "__main__":
                 calc_loss.backward()
                 optimizer.step()
 
+        metrics = {}
+        metrics['precision'] = []
+        metrics['recall'] = []
+        metrics['F1'] = []
         print '\nValidation Phase'
         model.eval()
         losses['validation'] = []
@@ -328,7 +346,7 @@ if __name__ == "__main__":
                 calc_loss = torch.mean(weighted_map.view(-1) *
                                         F.binary_cross_entropy_with_logits(
                                             model_output.view(-1),
-                                            gt_patches.view(-1), reduce='none'))
+                                            flat_gt, reduce='none'))
 
                 # calc_loss = F.binary_cross_entropy_with_logits(model_output.view(-1),
                 #                                                flat_gt,
@@ -346,21 +364,25 @@ if __name__ == "__main__":
                     print torch.max(sigmoid(model_output))
                     precision, recall, F1, TP_inside, FP_inside, FN_inside = evaluate_metrics(sigmoid(model_output).squeeze(), centers_df.squeeze(), args)
                 enablePrint()
+                print(precision)
+                print(recall)
+                print(F1)
 
-                metrics['precision'] = precision
-                metrics['recall'] = recall
-                metrics['F1'] = F1
+                metrics['precision'].append(precision)
+                metrics['recall'].append(recall)
+                metrics['F1'].append(F1)
 
-                if F1 > best_f1:
-                    best_f1  = F1
-                    best_epoch = epoch
-                    file_name = os.path.join(args.model_save_path, args.name_dir,  "best.txt")
-                    with open(file_name, "w") as f:
-                        f.write("best epoch: "+str(epoch)+"\n")
-                        f.write("F1: "+str(F1))
+        F1 = torch.tensor(metrics['F1']).float().mean().item()
+        if F1 > best_f1:
+            best_f1 = F1
+            best_epoch = epoch
+            file_name = os.path.join(args.model_save_path, args.name_dir,  "best.txt")
+            with open(file_name, "w") as f:
+                f.write("best epoch: "+str(epoch)+"\n")
+                f.write("F1: "+str(F1))
 
         # after each epoch we print and save in tensorboard the losses
-        print_and_save_losses(losses, writer, epoch)
+        print_and_save_losses(losses, metrics, writer, epoch)
 
         # sometimes we save the model
         if criterium_to_save():

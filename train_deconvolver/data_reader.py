@@ -123,7 +123,7 @@ class DataReaderValidation_2map(Dataset):
         weight_path = (os.path.join(self.weight_dir, img_name)
                        + "_weighted_map.pth")
         no_weight_path = (os.path.join(self.no_weight_dir, img_name)
-                       + "_no_weighted_map.pth")
+                       + "_no_weight_map.pth")
         # print img_path
         image = torch.load(img_path).float()
         gt = torch.load(gt_path).float()
