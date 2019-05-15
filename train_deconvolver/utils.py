@@ -22,6 +22,44 @@ def weights_init(m):
         torch.nn.init.normal_(m.weight.data, 1.0, 0.02)
         torch.nn.init.constant_(m.bias.data, 0)
 
+
+def filter_substack(substack, model,
+                    patch_dim=(90, 81, 90),
+                    overlap=(20, 20, 20)):
+    '''
+    a causa delle gpu scarse siamo costretti a
+    utilizzare il modello come filtro patchwise
+    nei casi di reti particolarmente pesanti come
+    quelle teacher.
+    Di default ci si aspetta delle immagini 3D
+    con le seguenti dimensioni: (280, 244, 280).
+    I valori di default sono ottimali per
+    questa situazione.
+    '''
+    mask = torch.zeros(substack.shape)
+    num_of_hit = torch.zeros(substack.shape)
+    stride = patch_dim - overlap
+    xs, ys, zs = np.where(mask == 0)
+    chosen_points = [[x, y, z] for x, y, z in zip(xs, ys, zs) if
+                     (x % stride[0] == 0
+                      and y % stride[1] == 0
+                      and z % stride[2] == 0)]
+    for points in chosen_points:
+        input = substack[points[0]:points[0] + patch_dim[0],
+                         points[1]:points[1] + patch_dim[1],
+                         points[2]:points[2] + patch_dim[2]]
+        output = model(input)
+
+        mask[points[0]:points[0] + patch_dim[0],
+             points[1]:points[1] + patch_dim[1],
+             points[2]:points[2] + patch_dim[2]] += output
+
+        num_of_hit[points[0]:points[0] + patch_dim[0],
+                   points[1]:points[1] + patch_dim[1],
+                   points[2]:points[2] + patch_dim[2]] += 1
+
+    return mask / num_of_hit
+
 def adapt_dimension(tensor):
     #new_tensor = tensor.squeeze()
     dim = torch.tensor(tensor.shape)
@@ -37,6 +75,7 @@ def convert_df_to_centers(gt_dataframe):
         centers_list.append(center)
 
     return centers_list
+
 
 def evaluate_metrics(pred_tensor, gt_dataframe, args):
     '''
