@@ -70,9 +70,9 @@ class FC_student(nn.Module):
 
 if __name__=="__main__":
 
-    teacher = FC_student(4, k_conv=7, k_t_conv=2).to('cuda:0')
-    summary(teacher, input_size=(64,64,64))
-    for i, p in enumerate(teacher.parameters()):
-        print(i, p.shape)
-        print (teacher._modules.keys()[i//2])
-        print(p.grad)
+    student = FC_student(4, k_conv=7, k_t_conv=2).to('cuda:0')
+    summary(student, input_size=(64, 64, 64))
+    #for i, p in enumerate(teacher.parameters()):
+    #    print(i, p.shape)
+    #    print (teacher._modules.keys()[i//2])
+    #    print(p.grad)

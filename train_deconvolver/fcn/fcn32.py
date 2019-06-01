@@ -101,7 +101,7 @@ class FCN32_3D(nn.Module):
         self._initialize_weights()
 
     def _initialize_weights(self):
-        print 'simomagi'
+        print 'Outer intialization'
 
     # @forward_time_teacher.timed
     def forward(self, x):
@@ -296,4 +296,4 @@ if __name__ == '__main__':
     teacher = FCN32_3D(1)
     teacher = nn.DataParallel(teacher)
     teacher.cuda()
-    summary(teacher, input_size=(1, 64, 64, 64))
+    summary(teacher, input_size=(1, 120, 120, 140))

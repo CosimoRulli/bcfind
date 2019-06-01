@@ -9,7 +9,7 @@ from models import FC_teacher_max_p
 from models import FC_student
 from models import FC_deeper_teacher
 from models import UNet3D
-#from models.FC_teacher_max_p import FC_teacher_max_p
+# from models.FC_teacher_max_p import FC_teacher_max_p
 from data_reader import DataReader, DataReaderWeight, DataReader_2map, DataReaderSubstack, DataReaderValidation_2map
 from models.FC_teacher import FC_teacher
 
@@ -59,6 +59,18 @@ def get_parser():
                         help="""device to use during training
                         and validation phase, e.g. cuda:0""")
 
+    parser.add_argument('teacher_model', metavar="teacher_model", type = str,
+                        help  = """Path to the teacher pretrained model""")
+
+    parser.add_argument('teacher_arch', metavar="teacher_arch", type=str,
+                        help = """Teacher architecture""",
+                        choices="deep, shallow")
+    parser.add_argument('n_filter_teacher', metavar="n_filter_teacher", type = str,
+                        help ="""Teacher initial filter, to match the loading of the pretrained model""")
+
+    parser.add_argument('k_teacher', metavar="k_teacher",type= str,
+                        help="""Kernel size in the teacher architecture, to match the loading of the pretrained model""")
+
     parser.add_argument('-a', '--arch', metavar='ARCH', default='teacher',
                         choices="teacher, student, UNet3D",
                         help='Choose between teacher and student architectures')
@@ -71,7 +83,6 @@ def get_parser():
                         action='store_true',
                         help="""whether to use the training with
                         a special pixel-wise loss set to true""")
-
 
     parser.add_argument('-b', '--batch_size', dest='batch_size', type=int,
                         default=8,
@@ -108,14 +119,13 @@ def get_parser():
                         help="""name of the directory where  model will
                         be stored""")
     parser.add_argument('--loss', dest="loss", type=str, default='bce', help="training loss ")
-
-
+    parser.add_argument('--alpha', dest = "alpha", type = float, default=0.5, help= "soft label contribution to whole loss")
+    parser.add_argument('--temperature', dest="temperature", type = float, default=10, help= "tempareture of the distillation loss to smooth teacher predictions")
     parser.set_defaults(special_loss=False)
     return parser
 
 
 def additional_namespace_arguments(parser):
-
     parser.set_defaults(hi_local_max_radius=6)
     parser.set_defaults(min_second_threshold=15)
     parser.set_defaults(mean_shift_bandwidth=5.5)
@@ -158,7 +168,7 @@ def print_and_save_losses(losses, metrics, writer, epoch):
         writer.add_scalars(
             'metrics',
             {key: metrics[key]},
-            global_step = epoch
+            global_step=epoch
         )
 
 
@@ -186,12 +196,12 @@ if __name__ == "__main__":
         os.makedirs(model_save_path)
 
     train_df = pd.read_csv(args.train_csv_path, comment="#",
-                                  index_col=0, dtype={"img_name": str})
+                           index_col=0, dtype={"img_name": str})
     patch_size = int(str(pd.read_csv(args.train_csv_path, nrows=1, header=None).
                          take([0])).split("=")[-1])  # workaround
     print 'patch_size' + str(patch_size)
     val_test_dataframe = pd.read_csv(args.val_test_csv_path, comment="#",
-                                  index_col=0, dtype={"name": str})
+                                     index_col=0, dtype={"name": str})
     val_df = val_test_dataframe[(val_test_dataframe['split'] == 'VAL')]
 
     if args.special_loss:
@@ -226,23 +236,35 @@ if __name__ == "__main__":
     # input_size = (args.patch_size, args.patch_size, args.patch_size)
 
     if args.arch == "teacher":
-        #model = FC_teacher_max_p.FC_teacher_max_p(n_filters=args.initial_filters, k_conv=args.kernel_size).to(args.device)
-        model = FC_deeper_teacher.FC_deeper_teacher(n_filters = args.initial_filters, k_conv=args.kernel_size).to(args.device)
+        # model = FC_teacher_max_p.FC_teacher_max_p(n_filters=args.initial_filters, k_conv=args.kernel_size).to(args.device)
+        student = FC_deeper_teacher.FC_deeper_teacher(n_filters=args.initial_filters, k_conv=args.kernel_size).to(
+            args.device)
     elif args.arch == "student":
-        model = FC_student.FC_student(n_filters=args.initial_filters, k_conv=args.kernel_size).to(args.device)
-    elif args.arch=="UNet3D":
-        model = UNet3D.UNet3D(in_channels = 1, out_channels = 1, final_sigmoid = True)
-        model = nn.DataParallel(model)
-        model = model.to(args.device)
+        student = FC_student.FC_student(n_filters=args.initial_filters, k_conv=args.kernel_size).to(args.device)
+    elif args.arch == "UNet3D":
+        student = UNet3D.UNet3D(in_channels=1, out_channels=1, final_sigmoid=True)
+        student = nn.DataParallel(student)
+        student = student.to(args.device)
     else:
         raise ValueError("Unrecognized architecture")
-    if args.arch!="UNet3D":
-        model.apply(utils.weights_init)
+    if args.arch != "UNet3D":
+        student.apply(utils.weights_init)
+
+    if args.teacher_arch == 'deep':
+        teacher = FC_deeper_teacher.FC_deeper_teacher(n_filters = args.n_filter_teacher, k_conv = args.k_teacher).to(args.device)
+    elif args.teacher_arch == 'shallow':
+        teacher = FC_student.FC_student(n_filters = args.n_filter_teacher, k_conv = args.k_teacher).to(args.device)
+    else:
+        raise ValueError("Unrecognized teacher architecture")
+    state_dict = torch.load(args.teacher_model)
+    teacher.load_state_dict(state_dict)
+    teacher.eval()
+
     # loss = nn.CrossEntropyLoss()
     loss = nn.BCELoss()
     # pos_w = torch.Tensor([1, args.soma_weight])
-    #loss = nn.BCEWithLogitsLoss()
-    optimizer = optim.Adam(model.parameters(), lr=args.lr)
+    # loss = nn.BCEWithLogitsLoss()
+    optimizer = optim.Adam(student.parameters(), lr=args.lr)
 
     ############
     # Main loop
@@ -253,27 +275,25 @@ if __name__ == "__main__":
     losses['train'] = []
     losses['validation'] = []
 
-
-
     best_f1 = -1
     best_epoch = 0
-
-    if args.loss == "bce" :
+    KLDivLossFunction = nn.KLDivLoss().to(args.device)
+    if args.loss == "bce":
         loss = F.binary_cross_entropy_with_logits
     elif args.loss == "mse":
         loss = F.mse_loss
     else:
-        raise ValueError("Unrecognized loss")\
+        raise ValueError("Unrecognized loss")
 
     for epoch in range(args.epochs):
         print("epoch [{}/{}]".format(epoch, args.epochs))
-####################
+        ####################
         print 'Train Phase'
 
-        model.train()
+        student.train()
         losses['train'] = []
 
-        dataset  = train_dataset
+        dataset = train_dataset
         total_iterations = len(dataset) // args.batch_size + 1
 
         progress_bar = tqdm(enumerate(train_loader),
@@ -293,7 +313,7 @@ if __name__ == "__main__":
 
             else:
                 img_patches, gt_patches, mask = patches
-                #img_patches = img_patches.unsqueeze(1)
+                # img_patches = img_patches.unsqueeze(1)
                 weighted_map = (mask * (args.soma_weight - 1)) + 1
 
             img_patches = img_patches.to(args.device)
@@ -301,22 +321,18 @@ if __name__ == "__main__":
             weighted_map = weighted_map.to(args.device)
 
             with torch.set_grad_enabled(True):
-                model.zero_grad()
+                student.zero_grad()
 
-                model_output = model(img_patches)
-                #print("output shape", model_output.shape)
-                #calc_loss = torch.mean( weighted_map.view(-1) *
-                #                        F.binary_cross_entropy_with_logits(
-                #                            model_output.view(-1),
-                #                            gt_patches.view(-1), reduce='none'))
-                calc_loss = torch.mean(weighted_map.view(-1) *
+                model_output = student(img_patches)
+                teacher_output = teacher(img_patches)
+
+                soft_loss = weighted_map.view(-1) * args.alpha * args.temperature**2 * KLDivLossFunction(sigmoid(model_output/args.temperature).view(-1), sigmoid((teacher_output/args.temperature).view(-1)))
+
+                hard_loss =(1-args.alpha)* torch.mean(weighted_map.view(-1) *
                                        loss(
                                            model_output.view(-1),
                                            gt_patches.view(-1), reduce='none'))
-                # calc_loss = F.binary_cross_entropy_with_logits(model_output.view(-1),
-                #                                                gt_patches.view(-1),
-                #                                                pos_weight=weighted_map.view(-1))
-
+                calc_loss = soft_loss + hard_loss
                 losses['train'].append(calc_loss)
 
                 calc_loss.backward()
@@ -327,7 +343,7 @@ if __name__ == "__main__":
         metrics['recall'] = []
         metrics['F1'] = []
         print '\nValidation Phase'
-        model.eval()
+        student.eval()
         losses['validation'] = []
         dataset = validation_dataset
 
@@ -342,7 +358,7 @@ if __name__ == "__main__":
                 img, gt, mask, no_weight_mask, centers_df = batch
 
                 weighted_map = img.clone()
-                
+
                 weighted_map[mask.byte()] = args.soma_weight
                 weighted_map[no_weight_mask.byte()] = 0
 
@@ -350,28 +366,27 @@ if __name__ == "__main__":
                 weighted_map += 1
             else:
                 img, gt, mask, centers_df = batch
-                #img = img.unsqueeze(0)
-                #print(img.shape)
+                img = img.unsqueeze(0)
+                print(img.shape)
                 weighted_map = (mask * (args.soma_weight - 1)) + 1
 
             img = img.to(args.device)
             gt = gt.to(args.device)
             weighted_map = weighted_map.to(args.device)
 
-
             '''Validation Loss'''
             with torch.set_grad_enabled(False):
-                #model.zero_grad()
-                model_output = model(adapt_dimension(img))
-                #model_output = model(img)
-                #print(model_output.shape)
+                # model.zero_grad()
+                model_output = student(adapt_dimension(img))
+                # model_output = model(img)
+                # print(model_output.shape)
                 gt_ad = adapt_dimension(gt)
-                #gt_ad = gt
+                # gt_ad = gt
                 flat_gt = gt_ad.contiguous().view(-1)
                 calc_loss = torch.mean(weighted_map.view(-1) *
-                                        loss(
-                                            model_output.view(-1),
-                                            flat_gt, reduce='none'))
+                                       loss(
+                                           model_output.view(-1),
+                                           flat_gt, reduce='none'))
 
                 # calc_loss = F.binary_cross_entropy_with_logits(model_output.view(-1),
                 #                                                flat_gt,
@@ -379,18 +394,19 @@ if __name__ == "__main__":
 
                 losses['validation'].append(calc_loss)
 
-                #print 'Computing accuracy'
+                # print 'Computing accuracy'
                 blockPrint()
-                #ricalcolo senza adattare le dimensioni
-                model_output = model(img)
+                # ricalcolo senza adattare le dimensioni
+                model_output = student(img)
 
                 with warnings.catch_warnings():
                     warnings.simplefilter('ignore')
                     print torch.max(sigmoid(model_output))
-                    precision, recall, F1, TP_inside, FP_inside, FN_inside = evaluate_metrics(sigmoid(model_output).squeeze(), centers_df.squeeze(), args)
+                    precision, recall, F1, TP_inside, FP_inside, FN_inside = evaluate_metrics(
+                        sigmoid(model_output).squeeze(), centers_df.squeeze(), args)
                 enablePrint()
-                #print(precision)
-                #print(recall)
+                # print(precision)
+                # print(recall)
                 #   print(F1)
 
                 metrics['precision'].append(precision)
@@ -401,16 +417,16 @@ if __name__ == "__main__":
         if F1 > best_f1:
             best_f1 = F1
             best_epoch = epoch
-            file_name = os.path.join(args.model_save_path, args.name_dir,  "best.txt")
+            file_name = os.path.join(args.model_save_path, args.name_dir, "best.txt")
             with open(file_name, "w") as f:
-                f.write("best epoch: "+str(epoch)+"\n")
-                f.write("F1: "+str(F1))
+                f.write("best epoch: " + str(epoch) + "\n")
+                f.write("F1: " + str(F1))
 
         # after each epoch we print and save in tensorboard the losses
         print_and_save_losses(losses, metrics, writer, epoch)
 
         # sometimes we save the model
         if criterium_to_save():
-            torch.save(model.state_dict(),
+            torch.save(student.state_dict(),
                        os.path.join(model_save_path,
                                     '{}_teacher'.format(epoch)))

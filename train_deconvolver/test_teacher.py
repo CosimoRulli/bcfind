@@ -6,7 +6,8 @@ from torch.utils.data import DataLoader
 import argparse
 import utils
 from data_reader import DataReaderSubstackTest
-from models.FC_teacher import FC_teacher
+#from models.FC_teacher import FC_teacher
+from models import FC_deeper_teacher
 from models import FC_teacher_max_p
 import torch.nn as nn
 import torch.optim as optim
@@ -83,6 +84,10 @@ def get_parser():
                         default=4,
                         help="""Number of filters in the initial conv layer""")
 
+    parser.add_argument('-a', '--arch', dest='arch',
+                        type=str,
+                        help =" network architecture "
+                        )
 
 
     return parser
@@ -131,10 +136,16 @@ if __name__ =="__main__":
 
     test_loader = DataLoader(test_dataset, 1,shuffle=False, num_workers=args.n_workers)
 
-    model = FC_teacher_max_p.FC_teacher_max_p(args.initial_filters, k_conv = args.kernel_size).to(args.device)
 
-    model.load_state_dict(torch.load(args.model_path, map_location=args.device ))
 
+    if(args.arch == 'max_p'):
+
+        model = FC_teacher_max_p.FC_teacher_max_p(args.initial_filters, k_conv = args.kernel_size).to(args.device)
+        model.load_state_dict(torch.load(args.model_path, map_location=args.device))
+
+    elif(args.arch == 'deeper'):
+        model =  FC_deeper_teacher.FC_deeper_teacher(args.initial_filters, k_conv = args.kernel_size).to(args.device)
+        model.load_state_dict(torch.load(args.model_path, map_location=args.device))
     print 'Starting test'
     model.eval()
 
@@ -157,14 +168,15 @@ if __name__ =="__main__":
         with torch.set_grad_enabled(False):
             print img_name
             model_output = model(img)
-            blockPrint()
+            #blockPrint()
             with warnings.catch_warnings():
 
                 warnings.simplefilter('ignore')
 
                 precision, recall, F1, TP_inside, FP_inside, FN_inside = evaluate_metrics(sigmoid(model_output).squeeze(0),
                                                                                       centers_df.squeeze(0), args)
-            enablePrint()
+            #enablePrint()
+
             print precision
             print recall
             print F1

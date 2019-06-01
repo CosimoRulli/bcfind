@@ -73,7 +73,7 @@ class FC_teacher_max_p(nn.Module):
 if __name__=="__main__":
 
     teacher = FC_teacher_max_p(8, k_conv=7, k_t_conv=2).to('cuda:0')
-    summary(teacher, input_size=(64,64,64))
+    summary(teacher, input_size=(245,280,281))
     for i, p in enumerate(teacher.parameters()):
         print(i, p.shape)
         print (teacher._modules.keys()[i//2])
